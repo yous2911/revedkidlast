@@ -1,0 +1,140 @@
+// Test setup file for Jest
+import { sequelize } from '../db';
+
+// Global test setup
+beforeAll(async () => {
+  // Connect to test database
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Test database connected');
+  } catch (error) {
+    console.error('❌ Test database connection failed:', error);
+    throw error;
+  }
+});
+
+// Global test teardown
+afterAll(async () => {
+  // Close database connection
+  try {
+    await sequelize.close();
+    console.log('✅ Test database connection closed');
+  } catch (error) {
+    console.error('❌ Error closing test database connection:', error);
+  }
+});
+
+// Clean up after each test
+afterEach(async () => {
+  // Clean up test data if needed
+  // This can be customized based on your test requirements
+});
+
+// Mock console methods to reduce noise in tests
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+beforeAll(() => {
+  // Suppress console output during tests unless explicitly needed
+  if (process.env['NODE_ENV'] === 'test') {
+    console.log = jest.fn();
+    console.error = jest.fn();
+    console.warn = jest.fn();
+  }
+});
+
+afterAll(() => {
+  // Restore console methods
+  console.log = originalConsoleLog;
+  console.error = originalConsoleError;
+  console.warn = originalConsoleWarn;
+});
+
+// Global test utilities
+export const testUtils = {
+  // Helper to create test data
+  createTestStudent: (data = {}) => ({
+    prenom: 'Test',
+    nom: 'Student',
+    dateNaissance: new Date('2015-01-01'),
+    age: 8,
+    niveauActuel: 'CE2',
+    emailParent: 'test@example.com',
+    totalPoints: 0,
+    serieJours: 0,
+    preferences: {},
+    adaptations: {},
+    ...data
+  }),
+
+  // Helper to create test exercise
+  createTestExercise: (data = {}) => ({
+    titre: 'Test Exercise',
+    consigne: 'Test instruction',
+    type: 'QCM',
+    difficulte: 'decouverte',
+    pointsReussite: 10,
+    dureeEstimee: 5,
+    ordre: 1,
+    moduleId: 1,
+    configuration: {
+      question: 'Test question?',
+      choix: ['A', 'B', 'C', 'D'],
+      bonneReponse: 'A'
+    },
+    actif: true,
+    metadata: {},
+    ...data
+  }),
+
+  // Helper to create test module
+  createTestModule: (data = {}) => ({
+    titre: 'Test Module',
+    description: 'Test module description',
+    niveau: 'CE2',
+    matiere: 'MATHEMATIQUES',
+    periode: 'P1',
+    ordre: 1,
+    actif: true,
+    metadata: {},
+    ...data
+  }),
+
+  // Helper to wait for async operations
+  wait: (ms: number) => new Promise(resolve => setTimeout(resolve, ms)),
+
+  // Helper to generate random IDs
+  generateId: () => Math.floor(Math.random() * 1000000),
+
+  // Helper to create mock request
+  createMockRequest: (data = {}) => ({
+    params: {},
+    query: {},
+    body: {},
+    headers: {},
+    method: 'GET',
+    url: '/test',
+    originalUrl: '/test',
+    ip: '127.0.0.1',
+    get: jest.fn(),
+    ...data
+  }),
+
+  // Helper to create mock response
+  createMockResponse: () => {
+    const res: any = {};
+    res.status = jest.fn().mockReturnValue(res);
+    res.json = jest.fn().mockReturnValue(res);
+    res.send = jest.fn().mockReturnValue(res);
+    res.end = jest.fn().mockReturnValue(res);
+    res.setHeader = jest.fn().mockReturnValue(res);
+    res.getHeader = jest.fn().mockReturnValue(null);
+    res.removeHeader = jest.fn().mockReturnValue(res);
+    res.on = jest.fn().mockReturnValue(res);
+    return res;
+  }
+};
+
+// Export for use in tests
+export default testUtils; 
