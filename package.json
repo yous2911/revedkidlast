@@ -1,13 +1,103 @@
 {
-  "dependencies": {
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "^0.5.16",
-    "@types/howler": "^2.2.12",
-    "framer-motion": "^12.23.3",
-    "howler": "^2.2.4",
-    "ioredis": "^5.6.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwindcss": "^4.1.11"
-  }
+  "name": "reved-kids",
+  "version": "1.0.0",
+  "description": "RevEd Kids - Magical Educational App with React & Node.js",
+  "private": true,
+  "workspaces": [
+    "reved-kids-frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd reved-kids-frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd reved-kids-frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd reved-kids-frontend && npm test",
+    "test:backend": "cd backend && npm test",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd reved-kids-frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd reved-kids-frontend && npm run format",
+    "format:backend": "cd backend && npm run format",
+    "install:all": "npm install && npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd reved-kids-frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "clean": "npm run clean:frontend && npm run clean:backend",
+    "clean:frontend": "cd reved-kids-frontend && npm run clean",
+    "clean:backend": "cd backend && npm run clean",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "setup": "npm run install:all && npm run setup:env",
+    "setup:env": "cp reved-kids-frontend/env.example reved-kids-frontend/.env.local && cp backend/env.example backend/.env",
+    "check": "npm run lint && npm run test",
+    "prepare": "husky install",
+    "release": "standard-version",
+    "docs": "npm run docs:frontend && npm run docs:backend",
+    "docs:frontend": "cd reved-kids-frontend && npm run docs",
+    "docs:backend": "cd backend && npm run docs"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "standard-version": "^9.5.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/reved-kids.git"
+  },
+  "keywords": [
+    "education",
+    "children",
+    "react",
+    "typescript",
+    "nodejs",
+    "express",
+    "tailwindcss",
+    "framer-motion",
+    "sound",
+    "haptic",
+    "gamification"
+  ],
+  "author": {
+    "name": "RevEd Kids Team",
+    "email": "team@revedkids.com",
+    "url": "https://revedkids.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-username/reved-kids/issues"
+  },
+  "homepage": "https://revedkids.com",
+  "contributors": [
+    {
+      "name": "Your Name",
+      "email": "your.email@example.com"
+    }
+  ]
 }
