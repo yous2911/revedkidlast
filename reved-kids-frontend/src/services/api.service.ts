@@ -5,7 +5,7 @@ export class ApiService {
   private defaultHeaders: Record<string, string>;
   private requestCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
   
-  constructor(baseURL: string = process.env.REACT_APP_API_URL || 'http://localhost:3000/api') {
+  constructor(baseURL: string = 'http://localhost:3000/api') {
     this.baseURL = baseURL;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
