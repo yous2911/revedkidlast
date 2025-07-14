@@ -1,5 +1,14 @@
 // Test setup file for Jest
+import { config } from 'dotenv';
+import path from 'path';
 import { sequelize } from '../db';
+
+// Load test environment variables
+const testEnvPath = path.resolve(__dirname, '../../test.env');
+config({ path: testEnvPath });
+
+// Set test environment
+process.env.NODE_ENV = 'test';
 
 // Global test setup
 beforeAll(async () => {
@@ -7,6 +16,10 @@ beforeAll(async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ Test database connected');
+    
+    // Sync database for tests (this will create tables)
+    await sequelize.sync({ force: true });
+    console.log('✅ Test database synced');
   } catch (error) {
     console.error('❌ Test database connection failed:', error);
     throw error;
@@ -26,8 +39,20 @@ afterAll(async () => {
 
 // Clean up after each test
 afterEach(async () => {
-  // Clean up test data if needed
-  // This can be customized based on your test requirements
+  // Clean up test data by truncating tables
+  try {
+    const models = sequelize.models;
+    for (const modelName in models) {
+      const model = models[modelName];
+      await model.destroy({ 
+        where: {},
+        force: true,
+        truncate: true 
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ Error cleaning up test data:', error);
+  }
 });
 
 // Mock console methods to reduce noise in tests

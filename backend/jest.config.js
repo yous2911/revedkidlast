@@ -7,7 +7,9 @@ module.exports = {
     '**/*.(test|spec).+(ts|tsx|js)'
   ],
   transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: 'tsconfig.test.json',
+    }],
   },
   transformIgnorePatterns: [],
   collectCoverageFrom: [
@@ -19,11 +21,6 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-  testTimeout: 10000,
-  // moduleNameMapping supprimé car non supporté
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.test.json',
-    },
-  },
+  setupFiles: ['<rootDir>/src/test/env-setup.ts'],
+  testTimeout: 30000, // Increased timeout for database operations
 }; 
