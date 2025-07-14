@@ -14,6 +14,7 @@
     "@types/node": "^16.18.126",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "dompurify": "^3.0.0",
     "framer-motion": "^12.23.3",
     "howler": "^2.2.4",
     "react": "^19.1.0",
@@ -25,26 +26,20 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:prod": "NODE_ENV=production npm run build",
     "test": "react-scripts test",
-    "test:coverage": "react-scripts test --coverage --watchAll=false",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
     "eject": "react-scripts eject",
-
-    "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "format": "prettier --write src/**/*.{ts,tsx,json,css}",
-    "format:check": "prettier --check src/**/*.{ts,tsx,json,css}",
+    "dev": "react-scripts start",
+    "preview": "serve -s build",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "test:a11y": "jest --testPathPattern=a11y",
+    "test:performance": "jest --testPathPattern=performance",
+    "e2e:test": "playwright test",
+    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
     "type-check": "tsc --noEmit",
-
-    "audit": "npm audit --audit-level moderate",
-    "audit:fix": "npm audit fix",
-    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
-
-    "docker:build": "docker build -t reved-kids-frontend .",
-    "docker:run": "docker run -p 8080:8080 reved-kids-frontend",
-    "docker:dev": "docker-compose up --build"
+    "format": "prettier --write src/**/*.{ts,tsx,js,jsx,css,md}",
+    "analyze": "npm run build && npx bundle-analyzer build/static/js/*.js",
+    "deploy": "npm run build && npm run deploy:static"
   },
   "eslintConfig": {
     "extends": [
@@ -65,15 +60,6 @@
     ]
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
-    "@testing-library/jest-dom": "^6.1.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^14.5.0",
-    "@types/jest": "^29.5.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.57.0",
-    "prettier": "^3.0.0",
-    "webpack-bundle-analyzer": "^4.10.0"
+    "@types/dompurify": "^3.0.0"
   }
 }
