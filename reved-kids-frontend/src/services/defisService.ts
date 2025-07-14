@@ -1,76 +1,69 @@
-import { DefiPhonique, ApiResponse as SharedApiResponse } from '../types/shared';
-import { ApiResponse as ApiTypesResponse } from '../types/api.types';
+import { DefiPhonique } from '../types/shared';
+import { ApiResponse } from '../types/api.types';
 import { apiService } from './api.service';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
-
 class DefisService {
-  async getAllDefis(): Promise<SharedApiResponse<DefiPhonique[]>> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/defis/massifs`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  private readonly basePath = '/defis';
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Erreur lors de la récupération des défis:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
-    }
+  /**
+   * Get all "massifs" (phonique challenges)
+   * Uses the centralized apiService for consistent error handling and caching
+   * This replaces the old getAllDefis method
+   */
+  async getDefisMassifs(): Promise<ApiResponse<DefiPhonique[]>> {
+    return apiService.get<DefiPhonique[]>(
+      `${this.basePath}/massifs`,
+      { cache: true } // Enable caching for better performance
+    );
   }
 
-  // Add missing getDefisMassifs method
-  async getDefisMassifs(niveauId?: number): Promise<SharedApiResponse<DefiPhonique[]>> {
-    const params = niveauId ? `?niveau=${niveauId}` : '';
-    const response = await apiService.get<DefiPhonique[]>(
-      `/defis/massifs${params}`,
-      { cache: true }
-    );
-    
-    // Convert between ApiResponse types
-    return {
-      success: response.success,
-      data: response.data,
-      error: response.error?.message || response.error
-    };
+  /**
+   * Get a specific phonique challenge by ID
+   */
+  async getDefiById(id: string): Promise<ApiResponse<DefiPhonique>> {
+    return apiService.get<DefiPhonique>(`${this.basePath}/${id}`);
   }
 
-  // Get defis by difficulty level
-  async getDefisByDifficulte(difficulte: 'facile' | 'moyen' | 'difficile'): Promise<SharedApiResponse<DefiPhonique[]>> {
-    const response = await apiService.get<DefiPhonique[]>(
-      `/defis?difficulte=${difficulte}`,
-      { cache: true }
-    );
-    
-    return {
-      success: response.success,
-      data: response.data,
-      error: response.error?.message || response.error
-    };
+  /**
+   * Get phonique challenges by difficulty level
+   */
+  async getDefisByNiveau(niveau: number): Promise<ApiResponse<DefiPhonique[]>> {
+    return apiService.get<DefiPhonique[]>(`${this.basePath}/niveau/${niveau}`);
   }
 
-  // Get defis for specific mathematical concept
-  async getDefisByConcept(concept: string): Promise<SharedApiResponse<DefiPhonique[]>> {
-    const response = await apiService.get<DefiPhonique[]>(
-      `/defis?concept=${encodeURIComponent(concept)}`,
-      { cache: true }
-    );
-    
-    return {
-      success: response.success,
-      data: response.data,
-      error: response.error?.message || response.error
-    };
+  /**
+   * Get phonique challenges by type
+   */
+  async getDefisByType(type: DefiPhonique['type']): Promise<ApiResponse<DefiPhonique[]>> {
+    return apiService.get<DefiPhonique[]>(`${this.basePath}/type/${type}`);
+  }
+
+  /**
+   * Get phonique challenges by difficulty
+   */
+  async getDefisByDifficulte(difficulte: DefiPhonique['difficulte']): Promise<ApiResponse<DefiPhonique[]>> {
+    return apiService.get<DefiPhonique[]>(`${this.basePath}/difficulte/${difficulte}`);
+  }
+
+  /**
+   * Get a random phonique challenge
+   */
+  async getRandomDefi(): Promise<ApiResponse<DefiPhonique>> {
+    return apiService.get<DefiPhonique>(`${this.basePath}/aleatoire`);
+  }
+
+  /**
+   * Get a random phonique challenge by level
+   */
+  async getRandomDefiByNiveau(niveau: number): Promise<ApiResponse<DefiPhonique>> {
+    return apiService.get<DefiPhonique>(`${this.basePath}/aleatoire/niveau/${niveau}`);
+  }
+
+  /**
+   * Clear service cache (useful for data refresh)
+   */
+  clearCache(): void {
+    apiService.clearCache();
   }
 }
 
