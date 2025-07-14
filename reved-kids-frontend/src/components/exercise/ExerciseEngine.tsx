@@ -59,7 +59,7 @@ export const ExerciseEngine: React.FC<ExerciseEngineProps> = ({
     showValidation: false
   });
 
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Update timer every second
   useEffect(() => {

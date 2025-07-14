@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { studentService, StudentDashboard, StudentProgress } from '../services/student.service';
 import { useApiData } from './useApiData';
-import { ExercicePedagogique, TentativeExercice, TentativeResponse } from '../types/api.types';
+import { ExercicePedagogique, TentativeExercice, TentativeResponse, Eleve } from '../types/api.types';
 
 export interface UseStudentDataReturn {
   // Student basic data
@@ -20,7 +20,7 @@ export interface UseStudentDataReturn {
   // Actions
   refreshStudent: () => Promise<void>;
   submitExercise: (exerciseId: number, attempt: TentativeExercice) => Promise<TentativeResponse>;
-  updateProfile: (updates: Partial<any>) => Promise<void>;
+  updateProfile: (updates: Partial<Eleve>) => Promise<void>;
 }
 
 export function useStudentData(studentId: number): UseStudentDataReturn {
@@ -64,27 +64,44 @@ export function useStudentData(studentId: number): UseStudentDataReturn {
     }
   );
 
-  // Submit exercise attempt
+  // Enhanced submit exercise with proper refresh logic
   const submitExercise = useCallback(async (
     exerciseId: number, 
     attempt: TentativeExercice
   ): Promise<TentativeResponse> => {
-    const response = await studentService.submitExerciseAttempt(studentId, exerciseId, attempt);
-    
-    // Refresh data after successful submission
-    if (response.success) {
-      refreshStudent();
-      refreshProgress();
-      refreshRecommendations();
+    try {
+      const response = await studentService.submitExerciseAttempt(studentId, exerciseId, attempt);
+      
+      // Fix: Only refresh on successful submission
+      if (response.success) {
+        // Fix: Run refreshes in parallel
+        await Promise.all([
+          refreshStudent(),
+          refreshProgress(),
+          refreshRecommendations()
+        ]);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Error submitting exercise:', error);
+      throw error;
     }
-    
-    return response;
   }, [studentId, refreshStudent, refreshProgress, refreshRecommendations]);
 
-  // Update student profile
-  const updateProfile = useCallback(async (updates: Partial<any>): Promise<void> => {
-    await studentService.updateStudentProfile(studentId, updates);
-    refreshStudent();
+  // Enhanced update profile with proper error handling
+  const updateProfile = useCallback(async (updates: Partial<Eleve>): Promise<void> => {
+    try {
+      const response = await studentService.updateStudentProfile(studentId, updates);
+      
+      if (response.success) {
+        // Fix: Update local state immediately
+        await refreshStudent();
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
   }, [studentId, refreshStudent]);
 
   // Memoized computed values

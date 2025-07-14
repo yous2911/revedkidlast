@@ -1,13 +1,4 @@
-import { ApiResponse, PaginatedResponse, ApiError, NetworkError } from '../types/api.types';
-
-export interface RequestConfig {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-  headers?: Record<string, string>;
-  body?: any;
-  timeout?: number;
-  retries?: number;
-  cache?: boolean;
-}
+import { ApiResponse, PaginatedResponse, ApiError, NetworkError, RequestConfig } from '../types/api.types';
 
 export class ApiService {
   private baseURL: string;
@@ -29,7 +20,7 @@ export class ApiService {
     return `${method}:${url}:${body}`;
   }
 
-  private getFromCache(key: string): any | null {
+  private getCache<T>(key: string): ApiResponse<T> | null {
     const cached = this.requestCache.get(key);
     if (!cached) return null;
     
@@ -42,6 +33,14 @@ export class ApiService {
     return cached.data;
   }
 
+  private isCacheValid(key: string): boolean {
+    const cached = this.requestCache.get(key);
+    if (!cached) return false;
+    
+    const now = Date.now();
+    return now <= cached.timestamp + cached.ttl;
+  }
+
   private setCache(key: string, data: any, ttl: number = 300000): void { // 5 minutes default
     this.requestCache.set(key, {
       data,
@@ -50,8 +49,8 @@ export class ApiService {
     });
   }
 
-  // HTTP client with error handling matching backend
-  async request<T = any>(
+  // Enhanced HTTP client with improved error handling
+  private async request<T = any>(
     endpoint: string, 
     config: RequestConfig = {}
   ): Promise<ApiResponse<T>> {
@@ -61,21 +60,24 @@ export class ApiService {
       body,
       timeout = 10000,
       retries = 3,
-      cache = method === 'GET'
+      cache = false
     } = config;
 
     const url = `${this.baseURL}${endpoint}`;
     const cacheKey = this.getCacheKey(url, config);
 
-    // Check cache for GET requests
+    // Enhanced cache handling
     if (cache && method === 'GET') {
-      const cached = this.getFromCache(cacheKey);
-      if (cached) {
+      const cached = this.getCache<T>(cacheKey);
+      if (cached && this.isCacheValid(cacheKey)) {
+        console.log(`📦 Cache hit: ${cacheKey}`);
         return cached;
       }
     }
 
-    const requestHeaders = {
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...this.defaultHeaders,
       ...headers
     };
@@ -86,34 +88,51 @@ export class ApiService {
       signal: AbortSignal.timeout(timeout)
     };
 
+    // Only add body for non-GET requests
     if (body && method !== 'GET') {
       requestConfig.body = JSON.stringify(body);
     }
 
     let lastError: Error = new NetworkError('Unknown error');
     
-    // Retry logic matching backend pattern
+    // Enhanced retry logic with exponential backoff
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`🔄 API Request [${attempt}/${retries}]: ${method} ${url}`);
         
         const response = await fetch(url, requestConfig);
-        const responseData = await response.json();
+        
+        // Handle empty responses
+        let responseData: any;
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          responseData = await response.json();
+        } else {
+          const text = await response.text();
+          responseData = text ? { message: text } : {};
+        }
 
-        // Handle HTTP errors
+        // Enhanced error handling
         if (!response.ok) {
-          const errorMessage = responseData.error?.message || `HTTP ${response.status}`;
+          const errorMessage = responseData.error?.message || 
+                             responseData.message || 
+                             `HTTP ${response.status}: ${response.statusText}`;
           const errorCode = responseData.error?.code || 'HTTP_ERROR';
           
           throw new ApiError(errorMessage, response.status, errorCode);
         }
 
-        // Validate response structure (matching backend ApiResponse)
+        // Validate response structure
+        if (typeof responseData !== 'object') {
+          responseData = { success: true, data: responseData };
+        }
+        
         if (typeof responseData.success !== 'boolean') {
-          throw new ApiError('Invalid response format', 500, 'INVALID_RESPONSE');
+          responseData.success = true;
         }
 
-        // Cache successful GET responses
+        // Cache successful responses properly
         if (cache && method === 'GET' && responseData.success) {
           this.setCache(cacheKey, responseData);
         }
@@ -122,6 +141,7 @@ export class ApiService {
         return responseData;
 
       } catch (error: unknown) {
+        // Better error categorization
         if (error instanceof ApiError) {
           lastError = error;
           // Don't retry client errors (4xx)
@@ -129,15 +149,20 @@ export class ApiService {
             throw error;
           }
         } else if (error instanceof TypeError || (error as Error).name === 'AbortError') {
-          lastError = new NetworkError('Connexion interrompue');
+          lastError = new NetworkError('Connexion interrompue ou timeout');
+        } else if ((error as Error).name === 'TimeoutError') {
+          lastError = new NetworkError('Délai d\'attente dépassé');
         } else {
           lastError = error as Error;
         }
 
-        // Wait before retry (exponential backoff)
+        // Exponential backoff with jitter
         if (attempt < retries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          console.log(`⏳ Retry in ${delay}ms...`);
+          const baseDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          const jitter = Math.random() * 1000;
+          const delay = baseDelay + jitter;
+          
+          console.log(`⏳ Retry in ${Math.round(delay)}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }

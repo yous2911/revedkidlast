@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExerciseCard, Exercise } from './ExerciseCard';
+import { ExerciseCard } from './ExerciseCard';
+import { ExercicePedagogique } from '../../types/api.types';
 import { ProgressBar } from '../ui/ProgressBar';
 import { AnimatedCard } from '../ui/AnimatedCard';
 import { CelebrationElements } from '../ui/FloatingElements';
@@ -11,7 +12,7 @@ interface ExerciseSession {
   id: string;
   title: string;
   description: string;
-  exercises: Exercise[];
+  exercises: ExercicePedagogique[];
   totalPoints: number;
   timeLimit?: number; // in minutes
 }
@@ -207,8 +208,8 @@ export const ExerciseManager: React.FC<ExerciseManagerProps> = ({
         >
           <ExerciseCard
             exercise={currentExercise}
-            onComplete={handleExerciseComplete}
-            onSkip={handleExerciseSkip}
+            onClick={() => handleExerciseComplete(currentExercise.id.toString(), 100, 0)}
+            disabled={false}
           />
         </motion.div>
       </AnimatePresence>

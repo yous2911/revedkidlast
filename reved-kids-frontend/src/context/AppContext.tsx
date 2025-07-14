@@ -120,6 +120,11 @@ interface AppContextType {
   updateSettings: (settings: Partial<AppState>) => void;
   addPendingOperation: (operation: any) => void;
   syncPendingOperations: () => Promise<void>;
+  toggleSound: () => void;
+  toggleAnimations: () => void;
+  toggleSidebar: () => void;
+  setTheme: (theme: AppState['theme']) => void;
+  setLanguage: (language: AppState['language']) => void;
 }
 
 // Create context
@@ -241,6 +246,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.online, state.pendingOperations]);
 
+  // Additional convenience methods
+  const toggleSound = useCallback(() => {
+    dispatch({ type: 'TOGGLE_SOUND' });
+  }, []);
+
+  const toggleAnimations = useCallback(() => {
+    dispatch({ type: 'TOGGLE_ANIMATIONS' });
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    dispatch({ type: 'TOGGLE_SIDEBAR' });
+  }, []);
+
+  const setTheme = useCallback((theme: AppState['theme']) => {
+    dispatch({ type: 'SET_THEME', payload: theme });
+  }, []);
+
+  const setLanguage = useCallback((language: AppState['language']) => {
+    dispatch({ type: 'SET_LANGUAGE', payload: language });
+  }, []);
+
   // Auto-sync when coming back online
   useEffect(() => {
     if (state.online) {
@@ -256,7 +282,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     logout,
     updateSettings,
     addPendingOperation,
-    syncPendingOperations
+    syncPendingOperations,
+    toggleSound,
+    toggleAnimations,
+    toggleSidebar,
+    setTheme,
+    setLanguage
   };
 
   return (

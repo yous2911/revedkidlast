@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import FrenchPhonicsGame from './components/games/FrenchPhonicsGame';
+import { FrenchPhonicsGame } from './components/games/FrenchPhonicsGame';
 import FrenchMathsGame from './components/games/FrenchMathsGame';
 import './App.css';
 

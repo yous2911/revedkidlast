@@ -22,6 +22,51 @@ export interface PaginatedResponse<T = any> extends ApiResponse<{
   };
 }> {}
 
+// Request configuration types
+export interface RequestConfig {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  headers?: Record<string, string>;
+  body?: any;
+  timeout?: number;
+  retries?: number;
+  cache?: boolean;
+}
+
+export interface UseApiDataOptions {
+  immediate?: boolean;
+  dependencies?: any[];
+  cache?: boolean;
+}
+
+export interface UseApiDataReturn<T> {
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+  refresh: () => Promise<void>;
+}
+
+// Exercise component types
+export interface ExerciseDragDropProps {
+  exercise: ExercicePedagogique;
+  onAnswerChange: (answer: any) => void;
+  disabled: boolean;
+  currentAnswer: any;
+  showValidation: boolean;
+}
+
+export interface DragItem {
+  id: string;
+  content: string;
+  category?: string;
+}
+
+export interface DropZone {
+  id: string;
+  label: string;
+  accepts?: string[];
+  currentItem?: DragItem | null;
+}
+
 // Core entities matching backend models
 export interface Niveau {
   id: number;

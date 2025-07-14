@@ -1,140 +1,84 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ApiResponse, ApiError } from '../types/api.types';
-import { useErrorHandler } from './useErrorHandler';
+import { UseApiDataOptions, UseApiDataReturn } from '../types/api.types';
 
-export interface UseApiDataOptions<T> {
-  initialData?: T;
-  immediate?: boolean;
-  dependencies?: any[];
-  retryCount?: number;
-  retryDelay?: number;
-  onSuccess?: (data: T) => void;
-  onError?: (error: Error) => void;
-  transform?: (data: any) => T;
-}
-
-export interface UseApiDataReturn<T> {
-  data: T | null;
-  loading: boolean;
-  error: Error | null;
-  execute: () => Promise<void>;
-  retry: () => Promise<void>;
-  refresh: () => Promise<void>;
-  reset: () => void;
-}
-
-export function useApiData<T = any>(
-  apiCall: () => Promise<ApiResponse<T>>,
-  options: UseApiDataOptions<T> = {}
+export function useApiData<T>(
+  apiCall: () => Promise<{ success: boolean; data?: T }>,
+  options: UseApiDataOptions = {}
 ): UseApiDataReturn<T> {
-  const {
-    initialData = null,
-    immediate = true,
-    dependencies = [],
-    retryCount = 3,
-    retryDelay = 1000,
-    onSuccess,
-    onError,
-    transform
-  } = options;
-
-  const [data, setData] = useState<T | null>(initialData);
-  const [loading, setLoading] = useState(false);
+  const { immediate = false, dependencies = [], cache = false } = options;
+  
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(immediate);
   const [error, setError] = useState<Error | null>(null);
   
-  const { handleApiError } = useErrorHandler();
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const retriesRef = useRef(0);
-
-  const execute = useCallback(async (): Promise<void> => {
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    abortControllerRef.current = new AbortController();
+  const mountedRef = useRef(true);
+  const cacheRef = useRef<Map<string, { data: T; timestamp: number }>>(new Map());
+  
+  const refresh = useCallback(async (): Promise<void> => {
+    if (!mountedRef.current) return;
+    
     setLoading(true);
     setError(null);
-
+    
     try {
+      const cacheKey = apiCall.toString();
+      
+      // Check cache first
+      if (cache) {
+        const cached = cacheRef.current.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < 300000) { // 5 min cache
+          setData(cached.data);
+          setLoading(false);
+          return;
+        }
+      }
+      
       const response = await apiCall();
       
-      if (!response.success) {
-        throw new ApiError(
-          response.error?.message || 'Request failed',
-          500,
-          response.error?.code
-        );
+      if (!mountedRef.current) return;
+      
+      if (response.success && response.data) {
+        setData(response.data);
+        
+        // Cache successful responses
+        if (cache) {
+          cacheRef.current.set(cacheKey, {
+            data: response.data,
+            timestamp: Date.now()
+          });
+        }
+      } else {
+        throw new Error('API call failed');
       }
-
-      const resultData = transform ? transform(response.data) : response.data;
-      if (resultData !== undefined) {
-        setData(resultData);
-        onSuccess?.(resultData);
-      }
-      retriesRef.current = 0;
-
     } catch (err) {
-      const error = err as Error;
+      if (!mountedRef.current) return;
+      
+      const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);
-      handleApiError(error);
-      onError?.(error);
-
-      // Auto-retry for network errors
-      if (retriesRef.current < retryCount && 
-          (error.name === 'NetworkError' || error.message.includes('fetch'))) {
-        retriesRef.current++;
-        setTimeout(() => {
-          if (!abortControllerRef.current?.signal.aborted) {
-            execute();
-          }
-        }, retryDelay * retriesRef.current);
-      }
+      console.error('useApiData error:', error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [apiCall, transform, onSuccess, onError, handleApiError, retryCount, retryDelay]);
-
-  const retry = useCallback(async (): Promise<void> => {
-    retriesRef.current = 0;
-    await execute();
-  }, [execute]);
-
-  const refresh = useCallback(async (): Promise<void> => {
-    // Force refresh by clearing cache if needed
-    await execute();
-  }, [execute]);
-
-  const reset = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    setData(initialData);
-    setLoading(false);
-    setError(null);
-    retriesRef.current = 0;
-  }, [initialData]);
-
-  // Execute on mount and dependency changes
+  }, [apiCall, cache]);
+  
   useEffect(() => {
     if (immediate) {
-      execute();
+      refresh();
     }
-
+  }, [refresh, immediate, ...dependencies]);
+  
+  useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      mountedRef.current = false;
     };
-  }, [immediate, ...dependencies]);
-
+  }, []);
+  
   return {
     data,
     loading,
     error,
-    execute,
-    retry,
-    refresh,
-    reset
+    refresh
   };
 } 

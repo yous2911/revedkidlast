@@ -4,7 +4,8 @@ import {
   Eleve, 
   ExercicePedagogique, 
   TentativeExercice, 
-  TentativeResponse 
+  TentativeResponse,
+  ValidationError
 } from '../types/api.types';
 
 export interface StudentProgress {
@@ -82,7 +83,7 @@ export class StudentService {
     exerciseId: number, 
     attempt: TentativeExercice
   ): Promise<TentativeResponse> {
-    // Validate attempt data before sending
+    // Enhanced validation with proper error handling
     this.validateAttempt(attempt);
 
     const payload = {
@@ -131,22 +132,26 @@ export class StudentService {
     return apiService.delete(`${this.basePath}/${studentId}`);
   }
 
-  // Validate attempt data
+  // Enhanced validation with proper error handling
   private validateAttempt(attempt: TentativeExercice): void {
+    // Fix: Add proper type checking
     if (typeof attempt.reussi !== 'boolean') {
-      throw new Error('Le statut de réussite est requis');
+      throw new ValidationError('Le statut de réussite est requis', 'reussi');
     }
     
-    if (typeof attempt.tempsSecondes !== 'number' || attempt.tempsSecondes < 0) {
-      throw new Error('Le temps de réponse doit être un nombre positif');
+    // Fix: Ensure positive numbers only
+    if (!Number.isFinite(attempt.tempsSecondes) || attempt.tempsSecondes < 0) {
+      throw new ValidationError('Le temps de réponse doit être un nombre positif', 'tempsSecondes');
     }
     
-    if (typeof attempt.aidesUtilisees !== 'number' || attempt.aidesUtilisees < 0) {
-      throw new Error('Le nombre d\'aides utilisées doit être un nombre positif');
+    // Fix: Validate aids count
+    if (!Number.isInteger(attempt.aidesUtilisees) || attempt.aidesUtilisees < 0) {
+      throw new ValidationError('Le nombre d\'aides utilisées doit être un entier positif', 'aidesUtilisees');
     }
     
-    if (attempt.reponse === undefined || attempt.reponse === null) {
-      throw new Error('Une réponse est requise');
+    // Fix: Better response validation
+    if (attempt.reponse === undefined || attempt.reponse === null || attempt.reponse === '') {
+      throw new ValidationError('Une réponse est requise', 'reponse');
     }
   }
 

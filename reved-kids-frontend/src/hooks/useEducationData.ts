@@ -45,7 +45,7 @@ export function useEducationData(): UseEducationDataReturn {
   const {
     data: currentHierarchy,
     loading: hierarchyLoading,
-    execute: loadHierarchy
+    refresh: loadHierarchy
   } = useApiData(
     () => Promise.resolve({ success: true, data: null }), // Placeholder
     {
@@ -57,12 +57,11 @@ export function useEducationData(): UseEducationDataReturn {
   const {
     data: exerciseResults,
     loading: exercisesLoading,
-    execute: executeExerciseSearch
+    refresh: executeExerciseSearch
   } = useApiData(
     () => Promise.resolve({ success: true, data: { exercices: [], pagination: null } }),
     {
-      immediate: false,
-      transform: (response) => response || { exercices: [], pagination: null }
+      immediate: false
     }
   );
 
@@ -109,8 +108,8 @@ export function useEducationData(): UseEducationDataReturn {
     return {
       exercises,
       exercisesPagination: pagination,
-      totalExercises: pagination?.total || 0,
-      hasMoreExercises: pagination?.hasMore || false
+      totalExercises: (pagination as any)?.total || 0,
+      hasMoreExercises: (pagination as any)?.hasMore || false
     };
   }, [exerciseResults]);
 
