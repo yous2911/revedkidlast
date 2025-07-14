@@ -1,23 +1,11 @@
-import { DefiMath } from '../../backend/src/lib/cp-maths-corpus';
+import { DefiMath, ApiResponse, Stats } from '../types/shared';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-export interface MathsApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  count?: number;
-}
-
-export interface MathsStats {
-  totalDefis: number;
-  defisParNiveau: Record<number, number>;
-  defisParType: Record<string, number>;
-  defisParDifficulte: Record<string, number>;
-}
+// Using shared types from shared.ts
 
 class MathsService {
-  private async makeRequest<T>(endpoint: string): Promise<MathsApiResponse<T>> {
+  private async makeRequest<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${API_BASE_URL}/maths${endpoint}`, {
         method: 'GET',
@@ -42,48 +30,48 @@ class MathsService {
   }
 
   // Obtenir tous les défis mathématiques
-  async getAllDefis(): Promise<MathsApiResponse<DefiMath[]>> {
+  async getAllDefis(): Promise<ApiResponse<DefiMath[]>> {
     return this.makeRequest<DefiMath[]>('/defis');
   }
 
   // Obtenir un défi spécifique par ID
-  async getDefiById(id: string): Promise<MathsApiResponse<DefiMath>> {
+  async getDefiById(id: string): Promise<ApiResponse<DefiMath>> {
     return this.makeRequest<DefiMath>(`/defis/${id}`);
   }
 
   // Obtenir des défis par niveau
-  async getDefisByNiveau(niveau: number): Promise<MathsApiResponse<DefiMath[]>> {
+  async getDefisByNiveau(niveau: number): Promise<ApiResponse<DefiMath[]>> {
     return this.makeRequest<DefiMath[]>(`/defis/niveau/${niveau}`);
   }
 
   // Obtenir des défis par type
-  async getDefisByType(type: DefiMath['type']): Promise<MathsApiResponse<DefiMath[]>> {
+  async getDefisByType(type: DefiMath['type']): Promise<ApiResponse<DefiMath[]>> {
     return this.makeRequest<DefiMath[]>(`/defis/type/${type}`);
   }
 
   // Obtenir des défis par difficulté
-  async getDefisByDifficulte(difficulte: DefiMath['difficulte']): Promise<MathsApiResponse<DefiMath[]>> {
+  async getDefisByDifficulte(difficulte: DefiMath['difficulte']): Promise<ApiResponse<DefiMath[]>> {
     return this.makeRequest<DefiMath[]>(`/defis/difficulte/${difficulte}`);
   }
 
   // Obtenir un défi aléatoire
-  async getRandomDefi(): Promise<MathsApiResponse<DefiMath>> {
+  async getRandomDefi(): Promise<ApiResponse<DefiMath>> {
     return this.makeRequest<DefiMath>('/defis/aleatoire');
   }
 
   // Obtenir un défi aléatoire par niveau
-  async getRandomDefiByNiveau(niveau: number): Promise<MathsApiResponse<DefiMath>> {
+  async getRandomDefiByNiveau(niveau: number): Promise<ApiResponse<DefiMath>> {
     return this.makeRequest<DefiMath>(`/defis/aleatoire/niveau/${niveau}`);
   }
 
   // Obtenir des défis adaptés au niveau de progression de l'élève
-  async getDefisForProgression(niveauEleve: number): Promise<MathsApiResponse<DefiMath[]>> {
+  async getDefisForProgression(niveauEleve: number): Promise<ApiResponse<DefiMath[]>> {
     return this.makeRequest<DefiMath[]>(`/defis/progression/${niveauEleve}`);
   }
 
   // Obtenir les statistiques des défis
-  async getStats(): Promise<MathsApiResponse<MathsStats>> {
-    return this.makeRequest<MathsStats>('/stats');
+  async getStats(): Promise<ApiResponse<Stats>> {
+    return this.makeRequest<Stats>('/stats');
   }
 
   // Méthodes utilitaires pour le cache local
@@ -116,7 +104,7 @@ class MathsService {
   }
 
   // Version avec cache pour les méthodes principales
-  async getAllDefisWithCache(): Promise<MathsApiResponse<DefiMath[]>> {
+  async getAllDefisWithCache(): Promise<ApiResponse<DefiMath[]>> {
     const cached = this.getCachedData<DefiMath[]>('all_defis');
     if (cached) {
       return { success: true, data: cached };
@@ -129,8 +117,8 @@ class MathsService {
     return result;
   }
 
-  async getStatsWithCache(): Promise<MathsApiResponse<MathsStats>> {
-    const cached = this.getCachedData<MathsStats>('stats');
+  async getStatsWithCache(): Promise<ApiResponse<Stats>> {
+    const cached = this.getCachedData<Stats>('stats');
     if (cached) {
       return { success: true, data: cached };
     }

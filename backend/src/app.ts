@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import compression from 'compression';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { 
@@ -16,6 +15,8 @@ import { cacheMiddleware } from './services/cache.service';
 import { authRoutes } from './routes/auth.routes';
 import { eleveRoutes } from './routes/eleve.routes';
 import monitoringRoutes from './routes/monitoring.routes';
+import defisRoutes from './routes/defisRoutes';
+import mathsRoutes from './routes/mathsRoutes';
 
 const app = express();
 
@@ -32,7 +33,7 @@ app.use(corsMiddleware);
 app.use(compression({
   level: 6,
   threshold: 1024, // Only compress responses > 1KB
-  filter: (req, res) => {
+  filter: (_req, res) => {
     // Don't compress images or already compressed content
     const contentType = res.getHeader('content-type');
     if (typeof contentType === 'string') {
@@ -47,7 +48,7 @@ app.use(compression({
 // Request parsing middleware
 app.use(express.json({ 
   limit: '10mb',
-  verify: (req, res, buf) => {
+  verify: (_req, _res, buf) => {
     // Basic JSON bomb protection
     if (buf.length > 10 * 1024 * 1024) { // 10MB
       throw new Error('Payload trop volumineux');
@@ -70,14 +71,16 @@ app.use(cacheMiddleware(1800, 'api')); // 30 minutes cache
 app.use('/api/auth', authRoutes);
 app.use('/api/eleves', eleveRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/defis', defisRoutes);
+app.use('/api/maths', mathsRoutes);
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.json({
     success: true,
     message: 'RevEd Kids API',
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+    version: process.env['npm_package_version'] || '1.0.0',
+    environment: process.env['NODE_ENV'] || 'development',
     timestamp: new Date().toISOString(),
     endpoints: {
       health: '/api/health',
@@ -88,15 +91,15 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
     data: {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0'
+      environment: process.env['NODE_ENV'] || 'development',
+      version: process.env['npm_package_version'] || '1.0.0'
     },
     message: 'Service opérationnel'
   });

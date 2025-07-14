@@ -5,7 +5,7 @@ const router = express.Router();
 const mathsGenerator = new MathsGenerator();
 
 // GET /api/maths/defis - Obtenir tous les défis mathématiques
-router.get('/defis', (req, res) => {
+router.get('/defis', (_req, res) => {
   try {
     const defis = mathsGenerator.getAllDefis();
     res.json({
@@ -137,7 +137,7 @@ router.get('/defis/difficulte/:difficulte', (req, res) => {
 });
 
 // GET /api/maths/defis/aleatoire - Obtenir un défi aléatoire
-router.get('/defis/aleatoire', (req, res) => {
+router.get('/defis/aleatoire', (_req, res) => {
   try {
     const defi = mathsGenerator.getRandomDefi();
     res.json({
@@ -216,7 +216,7 @@ router.get('/defis/progression/:niveauEleve', (req, res) => {
 });
 
 // GET /api/maths/stats - Obtenir les statistiques des défis
-router.get('/stats', (req, res) => {
+router.get('/stats', (_req, res) => {
   try {
     const stats = mathsGenerator.getStats();
     res.json({

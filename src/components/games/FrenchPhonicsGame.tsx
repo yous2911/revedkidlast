@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { defisService } from '../../services/defisService';
+import type { DefiPhonique } from '../../types/shared';
 import { AnimatedCard } from '../ui/AnimatedCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { SparkleElements, MagicElements, CelebrationElements } from '../ui/FloatingElements';
 import { useSound } from '../../hooks/useSound';
 import { useHaptic } from '../../hooks/useHaptic';
-import { getDefisMassifs, WordChallenge } from '../../services/defisService';
 
 interface MagicBlock {
   id: string;
@@ -33,7 +34,7 @@ interface DropZone {
 
 export const FrenchPhonicsGame: React.FC = () => {
   // Game state
-  const [challenges, setChallenges] = useState<WordChallenge[]>([]);
+  const [challenges, setChallenges] = useState<DefiPhonique[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
@@ -65,7 +66,7 @@ export const FrenchPhonicsGame: React.FC = () => {
 
   // Load challenges from backend
   useEffect(() => {
-    getDefisMassifs()
+    defisService.getDefisMassifs()
       .then((data) => {
         setChallenges(data);
         setLoading(false);

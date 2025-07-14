@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mathsService } from '../../services/mathsService';
-import type { DefiMath } from '../../../backend/src/lib/cp-maths-corpus';
+import type { DefiMath } from '../../types/shared';
 
 // Stone interface
 interface Stone {

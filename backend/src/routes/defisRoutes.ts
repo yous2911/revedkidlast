@@ -3,48 +3,84 @@ import { getDefisMassifs, getDefisPourPeriode, getDefisPourDifficulte } from '..
 
 const router = express.Router();
 
-// Get all challenges
-router.get('/massifs', (req, res) => {
+// GET /api/defis/massifs - Obtenir tous les défis de phonétique
+router.get('/massifs', (_req, res) => {
   try {
     const defis = getDefisMassifs();
-    res.json(defis);
-  } catch (err) {
-    console.error("Erreur génération défis massifs:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.json({
+      success: true,
+      data: defis,
+      count: defis.length
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des défis:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur interne du serveur'
+    });
   }
 });
 
-// Get challenges for specific period
+// GET /api/defis/periode/:periode - Obtenir des défis par période
 router.get('/periode/:periode', (req, res) => {
   try {
     const periode = parseInt(req.params.periode);
     if (isNaN(periode) || periode < 1 || periode > 5) {
-      return res.status(400).json({ error: "Période invalide (1-5)" });
+      return res.status(400).json({
+        success: false,
+        error: 'Période invalide (doit être entre 1 et 5)'
+      });
     }
     
     const defis = getDefisPourPeriode(periode);
-    res.json(defis);
-  } catch (err) {
-    console.error("Erreur génération défis pour période:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    
+    if (!defis || defis.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Aucun défi trouvé pour cette période'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: defis,
+      count: defis.length,
+      periode
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des défis par période:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur interne du serveur'
+    });
   }
 });
 
-// Get challenges for specific difficulty
+// GET /api/defis/difficulte/:difficulte - Obtenir des défis par difficulté
 router.get('/difficulte/:difficulte', (req, res) => {
   try {
-    const difficulte = req.params.difficulte;
-    const difficultesValides = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+    const { difficulte } = req.params;
+    const defis = getDefisPourDifficulte(difficulte);
     
-    if (!difficultesValides.includes(difficulte)) {
-      return res.status(400).json({ error: "Difficulté invalide" });
+    if (!defis || defis.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Aucun défi trouvé pour cette difficulté'
+      });
     }
     
-    const defis = getDefisPourDifficulte(difficulte);
-    res.json(defis);
-  } catch (err) {
-    console.error("Erreur génération défis pour difficulté:", err);
-    res.status(500).json({ error: "Erreur serveur" });
+    res.json({
+      success: true,
+      data: defis,
+      count: defis.length,
+      difficulte
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des défis par difficulté:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur interne du serveur'
+    });
   }
 });
 
