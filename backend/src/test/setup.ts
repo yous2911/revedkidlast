@@ -14,6 +14,32 @@ process.env['NODE_ENV'] = 'test';
 beforeAll(async () => {
   // Connect to test database
   try {
+    // First try to connect to the default postgres database to create our test database
+    const tempSequelize = new (require('sequelize-typescript').Sequelize)({
+      dialect: 'postgres',
+      host: process.env['DB_HOST'] || 'localhost',
+      port: parseInt(process.env['DB_PORT'] || '3002'),
+      username: process.env['DB_USER'] || 'postgres',
+      password: process.env['DB_PASSWORD'] || 'rachida',
+      database: 'postgres', // Connect to default database first
+      logging: false
+    });
+
+    try {
+      // Try to create the test database if it doesn't exist
+      await tempSequelize.query(`CREATE DATABASE reved_kids_test;`);
+      console.log('✅ Test database created');
+    } catch (createError: any) {
+      if (createError.message.includes('already exists')) {
+        console.log('✅ Test database already exists');
+      } else {
+        console.warn('⚠️ Could not create test database:', createError.message);
+      }
+    } finally {
+      await tempSequelize.close();
+    }
+
+    // Now connect to our test database
     await sequelize.authenticate();
     console.log('✅ Test database connected');
     

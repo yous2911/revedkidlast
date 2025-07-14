@@ -60,7 +60,7 @@ MAX_REQUEST_SIZE=10mb
 
 // Check if PostgreSQL is running (basic check)
 try {
-  execSync('pg_isready -h localhost -p 5432', { stdio: 'ignore' });
+  execSync('pg_isready -h localhost -p 3002', { stdio: 'ignore' });
   console.log('✅ PostgreSQL is running');
 } catch (error) {
   console.log('⚠️  PostgreSQL might not be running. Please start PostgreSQL first.');
@@ -69,9 +69,9 @@ try {
 
 // Try to create test database
 try {
-  execSync('psql -h localhost -U postgres -c "CREATE DATABASE reved_kids_test;"', { 
+  execSync('psql -h localhost -p 3002 -U postgres -c "CREATE DATABASE reved_kids_test;"', { 
     stdio: 'ignore',
-    env: { ...process.env, PGPASSWORD: 'password' }
+    env: { ...process.env, PGPASSWORD: 'rachida' }
   });
   console.log('✅ Test database created or already exists');
 } catch (error) {
@@ -89,7 +89,7 @@ console.log('3. Or run unit tests: npm run test:unit');
 console.log('4. Or run integration tests: npm run test:integration');
 console.log('');
 console.log('🔍 Troubleshooting:');
-console.log('- Make sure PostgreSQL is running on localhost:5432');
-console.log('- Ensure postgres user has password "password" or update test.env');
+console.log('- Make sure PostgreSQL is running on localhost:3002');
+console.log('- Ensure postgres user has password "rachida" or update test.env');
 console.log('- Check that all required packages are installed: npm install');
 console.log('- If tests fail, try: npm run test:setup'); 
