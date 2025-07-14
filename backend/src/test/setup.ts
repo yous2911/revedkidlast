@@ -5,10 +5,10 @@ import { sequelize } from '../db';
 
 // Load test environment variables
 const testEnvPath = path.resolve(__dirname, '../../test.env');
-config({ path: testEnvPath });
+config({ path: testEnvPath, quiet: true });
 
 // Set test environment
-process.env.NODE_ENV = 'test';
+process.env['NODE_ENV'] = 'test';
 
 // Global test setup
 beforeAll(async () => {
@@ -44,11 +44,13 @@ afterEach(async () => {
     const models = sequelize.models;
     for (const modelName in models) {
       const model = models[modelName];
-      await model.destroy({ 
-        where: {},
-        force: true,
-        truncate: true 
-      });
+      if (model) {
+        await model.destroy({ 
+          where: {},
+          force: true,
+          truncate: true 
+        });
+      }
     }
   } catch (error) {
     console.warn('⚠️ Error cleaning up test data:', error);

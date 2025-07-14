@@ -4,7 +4,7 @@ import path from 'path';
 
 // Load test environment variables before any tests run
 const testEnvPath = path.resolve(__dirname, '../../test.env');
-config({ path: testEnvPath });
+config({ path: testEnvPath, quiet: true });
 
 // Set test environment
 process.env['NODE_ENV'] = 'test';

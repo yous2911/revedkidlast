@@ -193,8 +193,9 @@ class MonitoringService {
 
   // Get current system metrics
   getSystemMetrics(): SystemMetrics {
-    const totalMemory = require('os').totalmem();
-    const freeMemory = require('os').freemem();
+    const os = require('os');
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
     const usedMemory = totalMemory - freeMemory;
 
     return {
@@ -205,7 +206,7 @@ class MonitoringService {
       },
       cpu: {
         usage: process.cpuUsage().user / 1000000, // seconds
-        load: require('os').loadavg()[0] || 0
+        load: os.loadavg()[0] || 0
       },
       database: {
         connections: 0, // Would need to track from connection pool
