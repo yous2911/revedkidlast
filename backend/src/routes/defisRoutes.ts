@@ -48,12 +48,9 @@ router.get('/periode/:periode', (req, res) => {
       periode
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des défis par période:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/defis/difficulte/:difficulte - Obtenir des défis par difficulté
@@ -76,12 +73,9 @@ router.get('/difficulte/:difficulte', (req, res) => {
       difficulte
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des défis par difficulté:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 export default router; 

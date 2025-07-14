@@ -18,7 +18,9 @@ export class AppError extends Error {
   constructor(message: string, statusCode: number, code?: string) {
     super(message);
     this.statusCode = statusCode;
-    this.code = code;
+    if (code) {
+      this.code = code;
+    }
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -27,7 +29,7 @@ export const globalErrorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   let error = err;
 
@@ -56,7 +58,7 @@ export const globalErrorHandler = (
 
   // Default error response
   const statusCode = error instanceof AppError ? error.statusCode : 500;
-  const message = process.env.NODE_ENV === 'production' && statusCode >= 500 
+  const message = process.env['NODE_ENV'] === 'production' && statusCode >= 500 
     ? 'Erreur interne du serveur' 
     : error.message;
 
@@ -64,8 +66,8 @@ export const globalErrorHandler = (
     success: false,
     error: {
       message,
-      code: error instanceof AppError ? error.code : 'INTERNAL_ERROR',
-      ...(process.env.NODE_ENV !== 'production' && { details: err.stack })
+      ...(error instanceof AppError && error.code && { code: error.code }),
+      ...(process.env['NODE_ENV'] !== 'production' && { details: err.stack })
     },
     timestamp: new Date().toISOString()
   };

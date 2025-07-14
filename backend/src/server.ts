@@ -1,14 +1,14 @@
 import app from './app';
-import { sequelize, testConnection, syncDatabase } from './db';
+import { testConnection, syncDatabase, closeDatabase } from './db';
 
-const PORT = process.env.PORT || 3000;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const PORT = process.env['PORT'] || 3000;
+const NODE_ENV = process.env['NODE_ENV'] || 'development';
 
 async function startServer() {
   try {
     console.log('🚀 Démarrage du serveur RevEd Kids...');
     
-    // Test database connection
+    // Test database connection (includes environment validation)
     console.log('📊 Vérification de la base de données...');
     await testConnection();
 
@@ -33,14 +33,21 @@ async function startServer() {
     const gracefulShutdown = async (signal: string) => {
       console.log(`\n⚠️ Signal ${signal} reçu, arrêt gracieux en cours...`);
       
+      // Force shutdown after 10 seconds
+      const shutdownTimeout = setTimeout(() => {
+        console.error('❌ Arrêt forcé après timeout');
+        process.exit(1);
+      }, 10000);
+      
       // Stop accepting new requests
       server.close(async () => {
+        // Clear the force shutdown timeout since we're shutting down gracefully
+        clearTimeout(shutdownTimeout);
         console.log('🔌 Serveur HTTP fermé');
         
         try {
-          // Close database connections
-          await sequelize.close();
-          console.log('📊 Connexions base de données fermées');
+          // Close database connections using the new function
+          await closeDatabase();
           
           console.log('✅ Arrêt gracieux terminé');
           process.exit(0);
@@ -49,12 +56,6 @@ async function startServer() {
           process.exit(1);
         }
       });
-
-      // Force shutdown after 10 seconds
-      setTimeout(() => {
-        console.error('❌ Arrêt forcé après timeout');
-        process.exit(1);
-      }, 10000);
     };
 
     // Listen for shutdown signals
@@ -84,8 +85,8 @@ process.on('uncaughtException', (error) => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Promesse rejetée non gérée:', reason);
+process.on('unhandledRejection', (_reason, _promise) => {
+  console.error('❌ Promesse rejetée non gérée');
   process.exit(1);
 });
 

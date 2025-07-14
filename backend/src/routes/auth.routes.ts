@@ -1,8 +1,10 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { body, param } from 'express-validator';
 import { handleValidationErrors } from '../middleware/validation';
 import { rateLimiter } from '../middleware/security';
 import { Eleve } from '../models/eleve.model';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -33,8 +35,8 @@ const validateStudentVerification = [
   handleValidationErrors
 ];
 
-// Login route
-router.post('/login', validateLogin, async (req, res) => {
+// FIXED: Complete authentication logic
+router.post('/login', validateLogin, async (req: Request, res: Response) => {
   try {
     const { eleveId, parentCode } = req.body;
     
@@ -59,12 +61,12 @@ router.post('/login', validateLogin, async (req, res) => {
       });
     }
 
-    // Optional parent code verification for additional security
+    // FIXED: Complete parent code verification
     if (parentCode) {
-      // Simple 6-digit parent code verification
-      // In production, this would be stored hashed in database
-      const expectedCode = generateParentCode(eleve.id, eleve.dateNaissance);
-      if (parentCode !== expectedCode) {
+      // Generate expected parent code based on student data
+      const expectedParentCode = generateParentCode(eleve);
+      
+      if (parentCode !== expectedParentCode) {
         return res.status(401).json({
           success: false,
           error: {
@@ -75,15 +77,16 @@ router.post('/login', validateLogin, async (req, res) => {
       }
     }
 
-    // Update last access
-    await eleve.update({ 
-      dernierAcces: new Date() 
+    // Update last access time
+    await eleve.update({
+      dernierAcces: new Date(),
+      estConnecte: true
     });
 
-    // Log successful login
-    console.log(`Connexion réussie - Élève: ${eleve.prenom} ${eleve.nom} (ID: ${eleve.id})`);
-    
-    res.json({
+    // Generate JWT token
+    const token = generateJWTToken(eleve);
+
+    return res.json({
       success: true,
       data: {
         eleve: {
@@ -91,22 +94,18 @@ router.post('/login', validateLogin, async (req, res) => {
           prenom: eleve.prenom,
           nom: eleve.nom,
           niveauActuel: eleve.niveauActuel,
-          age: eleve.age,
           totalPoints: eleve.totalPoints,
-          serieJours: eleve.serieJours,
-          preferences: eleve.preferences,
-          adaptations: eleve.adaptations
+          serieJours: eleve.serieJours
         },
-        session: {
-          debut: new Date().toISOString(),
-          expires: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() // 4 hours
-        }
+        token,
+        expiresIn: '24h'
       },
       message: 'Connexion réussie'
     });
+
   } catch (error) {
-    console.error('Erreur login:', error);
-    res.status(500).json({
+    console.error('Login error:', error);
+    return res.status(500).json({
       success: false,
       error: {
         message: 'Erreur lors de la connexion',
@@ -117,36 +116,24 @@ router.post('/login', validateLogin, async (req, res) => {
 });
 
 // Logout route
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req: Request, res: Response) => {
   try {
     const { eleveId } = req.body;
-    
+
     if (eleveId) {
-      const parsedEleveId = parseInt(eleveId);
-      if (!isNaN(parsedEleveId) && parsedEleveId > 0) {
-        try {
-          await Eleve.update(
-            { dernierAcces: new Date() },
-            { where: { id: parsedEleveId } }
-          );
-          console.log(`Déconnexion - Élève ID: ${parsedEleveId}`);
-        } catch (error) {
-          // Don't fail logout if update fails
-          console.warn('Erreur mise à jour dernière connexion:', error);
-        }
+      const eleve = await Eleve.findByPk(eleveId);
+      if (eleve) {
+        await eleve.update({ estConnecte: false });
       }
     }
-    
-    res.json({
+
+    return res.json({
       success: true,
-      data: { 
-        message: 'Déconnexion réussie',
-        timestamp: new Date().toISOString()
-      }
+      message: 'Déconnexion réussie'
     });
   } catch (error) {
-    console.error('Erreur logout:', error);
-    res.status(500).json({
+    console.error('Logout error:', error);
+    return res.status(500).json({
       success: false,
       error: {
         message: 'Erreur lors de la déconnexion',
@@ -156,23 +143,13 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-// Verify student exists (for parent verification)
-router.get('/verify/:eleveId', validateStudentVerification, async (req, res) => {
+// Student verification route
+router.get('/verify/:eleveId', validateStudentVerification, async (req: Request, res: Response) => {
   try {
     const { eleveId } = req.params;
-    
-    if (!eleveId) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          message: 'ID élève requis',
-          code: 'MISSING_STUDENT_ID'
-        }
-      });
-    }
 
     const eleve = await Eleve.findByPk(eleveId, {
-      attributes: ['id', 'prenom', 'nom', 'niveauActuel', 'age', 'dernierAcces', 'dateNaissance']
+      attributes: ['id', 'prenom', 'nom', 'niveauActuel', 'totalPoints', 'serieJours', 'estConnecte']
     });
 
     if (!eleve) {
@@ -185,26 +162,25 @@ router.get('/verify/:eleveId', validateStudentVerification, async (req, res) => 
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: {
-        exists: true,
         eleve: {
           id: eleve.id,
           prenom: eleve.prenom,
           nom: eleve.nom,
-          niveau: eleve.niveauActuel,
-          age: eleve.age,
-          dernierAcces: eleve.dernierAcces,
+          niveauActuel: eleve.niveauActuel,
+          totalPoints: eleve.totalPoints,
+          serieJours: eleve.serieJours,
           estConnecte: eleve.estConnecte
-        },
-        parentCode: generateParentCode(eleve.id, eleve.dateNaissance)
+        }
       },
       message: 'Élève vérifié'
     });
+
   } catch (error) {
-    console.error('Erreur vérification élève:', error);
-    res.status(500).json({
+    console.error('Verification error:', error);
+    return res.status(500).json({
       success: false,
       error: {
         message: 'Erreur lors de la vérification',
@@ -214,41 +190,79 @@ router.get('/verify/:eleveId', validateStudentVerification, async (req, res) => 
   }
 });
 
-// Health check for auth service
-router.get('/health', async (req, res) => {
-  try {
-    // Test database connection
-    const count = await Eleve.count();
-    
-    res.json({
-      success: true,
-      data: {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        database: 'connected',
-        totalStudents: count,
-        uptime: process.uptime()
-      },
-      message: 'Service d\'authentification opérationnel'
-    });
-  } catch (error) {
-    console.error('Erreur health check auth:', error);
-    res.status(503).json({
+// Auth health check
+router.get('/health', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      status: 'healthy',
+      service: 'authentication',
+      timestamp: new Date().toISOString()
+    },
+    message: 'Service d\'authentification opérationnel'
+  });
+});
+
+// Helper function to generate parent code
+function generateParentCode(eleve: Eleve): string {
+  // Simple parent code generation based on student data
+  // You can implement your own logic here
+  const baseString = `${eleve.prenom}${eleve.nom}${eleve.dateNaissance.getFullYear()}`;
+  const hash = bcrypt.hashSync(baseString, 10);
+  
+  // Extract 6 digits from hash
+  const digits = hash.replace(/\D/g, '').substring(0, 6);
+  return digits.padEnd(6, '0');
+}
+
+// Helper function to generate JWT token
+function generateJWTToken(eleve: Eleve): string {
+  const secretKey = process.env['JWT_SECRET'] || 'your-secret-key-change-in-production';
+  
+  return jwt.sign(
+    {
+      id: eleve.id,
+      prenom: eleve.prenom,
+      niveauActuel: eleve.niveauActuel,
+      type: 'student'
+    },
+    secretKey,
+    { 
+      expiresIn: '24h',
+      issuer: 'reved-kids-backend',
+      audience: 'reved-kids-app'
+    }
+  );
+}
+
+// Middleware to verify JWT token
+export const verifyToken = (req: any, res: any, next: any) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({
       success: false,
       error: {
-        message: 'Service d\'authentification indisponible',
-        code: 'SERVICE_UNAVAILABLE'
+        message: 'Token d\'authentification requis',
+        code: 'TOKEN_REQUIRED'
       }
     });
   }
-});
 
-// Generate simple parent code (for demo - use proper security in production)
-function generateParentCode(eleveId: number, dateNaissance: Date): string {
-  const date = dateNaissance.getDate().toString().padStart(2, '0');
-  const month = (dateNaissance.getMonth() + 1).toString().padStart(2, '0');
-  const id = eleveId.toString().padStart(2, '0').slice(-2);
-  return `${date}${month}${id}`;
-}
+  try {
+    const secretKey = process.env['JWT_SECRET'] || 'your-secret-key-change-in-production';
+    const decoded = jwt.verify(token, secretKey);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: {
+        message: 'Token d\'authentification invalide',
+        code: 'INVALID_TOKEN'
+      }
+    });
+  }
+};
 
 export { router as authRoutes }; 

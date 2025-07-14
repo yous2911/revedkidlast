@@ -79,7 +79,7 @@ export class DefiGenerator {
       const periodNumber = parseInt(periodKey.replace('periode', ''));
       
       // Phoneme challenges
-      periodData.phonemes.forEach((phoneme, index) => {
+      periodData.phonemes.forEach((phoneme) => {
         challenges.push({
           id: `phoneme_${phoneme}_${id++}`,
           targetWord: phoneme,
@@ -116,7 +116,7 @@ export class DefiGenerator {
       });
 
       // Syllable challenges
-      periodData.syllabes.forEach((syllabe, index) => {
+      periodData.syllabes.forEach((syllabe) => {
         const lettres = syllabe.split('');
         challenges.push({
           id: `syllabe_${syllabe}_${id++}`,
@@ -154,7 +154,7 @@ export class DefiGenerator {
       });
 
       // Word challenges
-      periodData.mots.forEach((mot, index) => {
+      periodData.mots.forEach((mot) => {
         const syllabes = this.diviserEnSyllabes(mot);
         challenges.push({
           id: `mot_${mot}_${id++}`,
@@ -222,18 +222,23 @@ export class DefiGenerator {
     let current = '';
     
     for (let i = 0; i < mot.length; i++) {
-      current += mot[i];
+      const currentChar = mot[i];
+      if (!currentChar) continue;
+      
+      current += currentChar;
       
       // Simple rules for syllable breaks
       if (i < mot.length - 1) {
-        const next = mot[i + 1];
-        const isVowel = /[aeiouyéèêëàâäôöùûüÿ]/.test(mot[i]);
-        const nextIsVowel = /[aeiouyéèêëàâäôöùûüÿ]/.test(next);
+        const nextChar = mot[i + 1];
+        if (!nextChar) continue;
+        
+        const isVowel = /[aeiouyéèêëàâäôöùûüÿ]/.test(currentChar);
+        const nextIsVowel = /[aeiouyéèêëàâäôöùûüÿ]/.test(nextChar);
         
         // Break between consonant-vowel
         if (!isVowel && nextIsVowel && current.length > 1) {
           syllabes.push(current.slice(0, -1));
-          current = mot[i];
+          current = currentChar;
         }
       }
     }

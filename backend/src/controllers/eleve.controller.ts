@@ -10,12 +10,17 @@ import { cacheService } from '../services/cache.service';
 import { Op } from 'sequelize';
 
 export class EleveController extends BaseController {
-  protected nomController = 'EleveController';
+  protected override nomController = 'EleveController';
 
   // Get student by ID
   getEleve = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const eleveId = parseInt(req.params.id);
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
     
+    const eleveId = parseInt(eleveIdParam);
     if (isNaN(eleveId) || eleveId <= 0) {
       this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
       return;
@@ -30,27 +35,39 @@ export class EleveController extends BaseController {
       return;
     }
 
-    // Update last access
-    await eleve.update({ dernierAcces: new Date() });
+    // Update login status and last access using new instance method
+    await eleve.updateLoginStatus(true);
 
     this.repondreSucces(res, {
       id: eleve.id,
       prenom: eleve.prenom,
       nom: eleve.nom,
+      nomComplet: eleve.getFullName(),
       niveauActuel: eleve.niveauActuel,
+      niveauNumerique: eleve.getNumericalLevel(),
       age: eleve.age,
+      groupeAge: eleve.getAgeGroup(),
       totalPoints: eleve.totalPoints,
       serieJours: eleve.serieJours,
       preferences: eleve.preferences,
+      adaptations: eleve.adaptations,
       dernierAcces: eleve.dernierAcces,
-      estConnecte: eleve.estConnecte
+      estConnecte: eleve.estConnecte,
+      estActif: eleve.isActive(),
+      necessiteSupervisionParent: eleve.needsParentSupervision()
     }, 'Données élève récupérées avec succès');
   });
 
   // Get recommended exercises
   getExercicesRecommandes = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const eleveId = parseInt(req.params.id);
-    const limite = Math.min(parseInt(req.query.limite as string) || 5, 20);
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+    const limite = Math.min(parseInt(req.query['limite'] as string) || 5, 20);
 
     if (isNaN(eleveId) || eleveId <= 0) {
       this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
@@ -85,6 +102,9 @@ export class EleveController extends BaseController {
 
       const exerciceIdsVus = exercicesVus.map(p => p.exerciceId);
 
+      // Use student's age group for better recommendations
+      const groupeAge = eleve.getAgeGroup();
+
       const exercices = await ExercicePedagogique.findAll({
         where: {
           id: { [Op.notIn]: exerciceIdsVus },
@@ -109,6 +129,7 @@ export class EleveController extends BaseController {
         difficulte: ex.difficulte,
         pointsReussite: ex.pointsReussite,
         dureeEstimee: ex.dureeEstimee,
+        adapteGroupeAge: groupeAge, // Add age group adaptation info
         module: {
           titre: ex.module?.titre,
           niveau: ex.module?.niveau,
@@ -129,7 +150,13 @@ export class EleveController extends BaseController {
 
   // Submit exercise attempt
   soumettreExercice = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const eleveId = parseInt(req.params.id);
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
     const { exerciceId, tentative } = req.body;
 
     // Validate student exists
@@ -199,7 +226,7 @@ export class EleveController extends BaseController {
         await progression.update({
           statut: nouveauStatut,
           nombreTentatives: progression.nombreTentatives + 1,
-          nombreReussites: progression.nombreReussites + (reussi ? 1 : 0),
+          nombreReussites: reussi ? progression.nombreReussites + 1 : progression.nombreReussites,
           pointsGagnes: progression.pointsGagnes + pointsGagnes,
           derniereTentative: new Date(),
           premiereReussite: reussi && !progression.premiereReussite ? new Date() : progression.premiereReussite,
@@ -217,82 +244,46 @@ export class EleveController extends BaseController {
         });
       }
 
-      // Update student points and streak
-      await eleve.update({
-        totalPoints: eleve.totalPoints + pointsGagnes,
-        serieJours: reussi ? eleve.serieJours + 1 : 0,
-        dernierAcces: new Date()
-      });
+      // Update student points and daily streak using new instance methods
+      if (pointsGagnes > 0) {
+        await eleve.addPoints(pointsGagnes);
+      }
+      await eleve.updateDailyStreak();
 
-      // Invalidate cache for this student
+      // Invalidate student cache
       await cacheService.invalidateStudentCache(eleveId);
 
-      // Update or create today's session
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const [session] = await SessionEleve.findOrCreate({
-        where: {
-          eleveId,
-          dateDebut: { [Op.between]: [today, tomorrow] }
-        },
-        defaults: {
-          eleveId,
-          dateDebut: new Date(),
-          exercicesReussis: reussi ? 1 : 0,
-          exercicesTentes: 1,
-          pointsGagnes,
-          dureeMinutes: Math.ceil(tempsSecondes / 60),
-          sessionTerminee: false
-        }
-      });
-
-      if (session) {
-        const exercicesReussis = session.exercicesReussis + (reussi ? 1 : 0);
-        const exercicesTentes = session.exercicesTentes + 1;
-        const pointsTotal = session.pointsGagnes + pointsGagnes;
-
-        await session.update({
-          exercicesReussis,
-          exercicesTentes,
-          pointsGagnes: pointsTotal,
-          dateFin: new Date()
-        });
-      }
-
-      // Calculate final statistics
-      const tauxReussite = Math.round((progression.nombreReussites / progression.nombreTentatives) * 100);
-      
       this.repondreSucces(res, {
         reussi,
         pointsGagnes,
-        nouveauStatut: progression.statut,
+        nouveauTotalPoints: eleve.totalPoints + pointsGagnes,
+        serieJours: eleve.serieJours,
         progression: {
+          statut: progression.statut,
           nombreTentatives: progression.nombreTentatives,
           nombreReussites: progression.nombreReussites,
-          tauxReussite
-        },
-        eleve: {
-          totalPoints: eleve.totalPoints + pointsGagnes,
-          serieJours: reussi ? eleve.serieJours + 1 : 0
+          pointsGagnes: progression.pointsGagnes
         }
-      }, 'Tentative enregistrée avec succès');
-
+      }, reussi ? 'Exercice réussi !' : 'Continuez vos efforts !');
     } catch (error) {
       this.logError('Erreur soumission exercice', error);
-      this.repondreErreur(res, 'Impossible d\'enregistrer la tentative', 500, 'SUBMISSION_ERROR');
+      this.repondreErreur(res, 'Impossible de soumettre l\'exercice', 500, 'SUBMISSION_ERROR');
     }
   });
 
   // Get student progress
   getProgression = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const eleveId = parseInt(req.params.id);
-    const statut = req.query.statut as string;
-    const matiere = req.query.matiere as string;
-    const limite = Math.min(parseInt(req.query.limite as string) || 50, 100);
-    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+    const statut = req.query['statut'] as string;
+    const matiere = req.query['matiere'] as string;
+    const limite = Math.min(parseInt(req.query['limite'] as string) || 50, 100);
+    const page = Math.max(parseInt(req.query['page'] as string) || 1, 1);
     const offset = (page - 1) * limite;
 
     if (isNaN(eleveId) || eleveId <= 0) {
@@ -307,15 +298,21 @@ export class EleveController extends BaseController {
     }
 
     try {
+      const includeOptions: any = [{
+        model: ExercicePedagogique,
+        include: [{
+          model: ModulePedagogique
+        }]
+      }];
+
+      // Add matiere filter if provided
+      if (matiere) {
+        includeOptions[0].include[0].where = { matiere };
+      }
+
       const { count, rows: progressions } = await ProgressionEleve.findAndCountAll({
         where: whereClause,
-        include: [{
-          model: ExercicePedagogique,
-          include: [{
-            model: ModulePedagogique,
-            where: matiere ? { matiere } : undefined
-          }]
-        }],
+        include: includeOptions,
         order: [['derniereTentative', 'DESC']],
         limit: limite,
         offset
@@ -359,54 +356,268 @@ export class EleveController extends BaseController {
     }
   });
 
-  // Get student sessions
+  // Get sessions and analytics
   getSessions = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const eleveId = parseInt(req.params.id);
-    const jours = Math.min(parseInt(req.query.jours as string) || 30, 90);
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+    const jours = parseInt(req.query['jours'] as string) || 30;
 
     if (isNaN(eleveId) || eleveId <= 0) {
       this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
       return;
     }
 
-    const dateDebut = new Date();
-    dateDebut.setDate(dateDebut.getDate() - jours);
+    const eleve = await Eleve.findByPk(eleveId);
+    if (!eleve) {
+      this.repondreErreur(res, `Élève avec l'ID ${eleveId} non trouvé`, 404, 'STUDENT_NOT_FOUND');
+      return;
+    }
 
     try {
+      const dateLimite = new Date();
+      dateLimite.setDate(dateLimite.getDate() - jours);
+
       const sessions = await SessionEleve.findAll({
         where: {
           eleveId,
-          dateDebut: { [Op.gte]: dateDebut }
+          dateDebut: { [Op.gte]: dateLimite }
         },
-        order: [['dateDebut', 'DESC']],
-        limit: 100
+        order: [['dateDebut', 'DESC']]
       });
 
-      // Calculate analytics
-      const totalSessions = sessions.length;
-      const tempsTotal = sessions.reduce((sum, s) => sum + s.dureeMinutes, 0);
-      const exercicesReussis = sessions.reduce((sum, s) => sum + s.exercicesReussis, 0);
-      const exercicesTentes = sessions.reduce((sum, s) => sum + s.exercicesTentes, 0);
-      const pointsTotal = sessions.reduce((sum, s) => sum + s.pointsGagnes, 0);
-      
       const analytics = {
-        totalSessions,
-        tempsTotal,
-        tempsMoyen: totalSessions > 0 ? Math.round(tempsTotal / totalSessions) : 0,
-        exercicesReussis,
-        exercicesTentes,
-        tauxReussiteGlobal: exercicesTentes > 0 ? Math.round((exercicesReussis / exercicesTentes) * 100) : 0,
-        pointsTotal,
+        totalSessions: sessions.length,
+        totalDuree: sessions.reduce((sum, session) => sum + (session.dureeMinutes || 0), 0),
+        moyenneDuree: sessions.length > 0 ? 
+          Math.round(sessions.reduce((sum, session) => sum + (session.dureeMinutes || 0), 0) / sessions.length) : 0,
+        sessionsParJour: Math.round(sessions.length / jours * 10) / 10,
         derniereSession: sessions[0]?.dateDebut || null
       };
 
       this.repondreSucces(res, {
-        sessions: sessions.slice(0, 20), // Limit detailed sessions
+        sessions: sessions.map(session => ({
+          id: session.id,
+          dateDebut: session.dateDebut,
+          dateFin: session.dateFin,
+          dureeMinutes: session.dureeMinutes,
+          exercicesReussis: session.exercicesReussis,
+          exercicesTentes: session.exercicesTentes,
+          pointsGagnes: session.pointsGagnes
+        })),
         analytics
       }, 'Sessions récupérées avec succès');
     } catch (error) {
       this.logError('Erreur récupération sessions', error);
       this.repondreErreur(res, 'Impossible de récupérer les sessions', 500, 'SESSIONS_ERROR');
+    }
+  });
+
+  // Update student preferences
+  updatePreferences = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+    const { preferences } = req.body;
+
+    if (isNaN(eleveId) || eleveId <= 0) {
+      this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
+      return;
+    }
+
+    const eleve = await Eleve.findByPk(eleveId);
+    if (!eleve) {
+      this.repondreErreur(res, `Élève avec l'ID ${eleveId} non trouvé`, 404, 'STUDENT_NOT_FOUND');
+      return;
+    }
+
+    try {
+      await eleve.updatePreferences(preferences);
+      
+      // Invalidate student cache
+      await cacheService.invalidateStudentCache(eleveId);
+
+      this.repondreSucces(res, {
+        preferences: eleve.preferences
+      }, 'Préférences mises à jour avec succès');
+    } catch (error) {
+      this.logError('Erreur mise à jour préférences', error);
+      this.repondreErreur(res, 'Impossible de mettre à jour les préférences', 500, 'PREFERENCES_ERROR');
+    }
+  });
+
+  // Update student adaptations
+  updateAdaptations = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+    const { adaptations } = req.body;
+
+    if (isNaN(eleveId) || eleveId <= 0) {
+      this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
+      return;
+    }
+
+    const eleve = await Eleve.findByPk(eleveId);
+    if (!eleve) {
+      this.repondreErreur(res, `Élève avec l'ID ${eleveId} non trouvé`, 404, 'STUDENT_NOT_FOUND');
+      return;
+    }
+
+    try {
+      await eleve.updateAdaptations(adaptations);
+      
+      // Invalidate student cache
+      await cacheService.invalidateStudentCache(eleveId);
+
+      this.repondreSucces(res, {
+        adaptations: eleve.adaptations
+      }, 'Adaptations mises à jour avec succès');
+    } catch (error) {
+      this.logError('Erreur mise à jour adaptations', error);
+      this.repondreErreur(res, 'Impossible de mettre à jour les adaptations', 500, 'ADAPTATIONS_ERROR');
+    }
+  });
+
+  // Get student statistics
+  getStatistiques = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+
+    if (isNaN(eleveId) || eleveId <= 0) {
+      this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
+      return;
+    }
+
+    const eleve = await Eleve.findByPk(eleveId);
+    if (!eleve) {
+      this.repondreErreur(res, `Élève avec l'ID ${eleveId} non trouvé`, 404, 'STUDENT_NOT_FOUND');
+      return;
+    }
+
+    try {
+      // Get progression statistics
+      const progressions = await ProgressionEleve.findAll({
+        where: { eleveId }
+      });
+
+      const statistiques = {
+        general: {
+          totalPoints: eleve.totalPoints,
+          serieJours: eleve.serieJours,
+          niveauActuel: eleve.niveauActuel,
+          niveauNumerique: eleve.getNumericalLevel(),
+          groupeAge: eleve.getAgeGroup(),
+          estActif: eleve.isActive(),
+          necessiteSupervisionParent: eleve.needsParentSupervision()
+        },
+        progression: {
+          totalExercices: progressions.length,
+          exercicesTermines: progressions.filter(p => p.statut === 'TERMINE').length,
+          exercicesEnCours: progressions.filter(p => p.statut === 'EN_COURS').length,
+          exercicesMaitrises: progressions.filter(p => p.statut === 'MAITRISE').length,
+          tauxReussite: progressions.length > 0 ? 
+            Math.round((progressions.filter(p => p.statut === 'TERMINE').length / progressions.length) * 100) : 0
+        },
+        performance: {
+          totalTentatives: progressions.reduce((sum, p) => sum + p.nombreTentatives, 0),
+          totalReussites: progressions.reduce((sum, p) => sum + p.nombreReussites, 0),
+          moyenneTentatives: progressions.length > 0 ? 
+            Math.round(progressions.reduce((sum, p) => sum + p.nombreTentatives, 0) / progressions.length * 10) / 10 : 0
+        }
+      };
+
+      this.repondreSucces(res, statistiques, 'Statistiques récupérées avec succès');
+    } catch (error) {
+      this.logError('Erreur récupération statistiques', error);
+      this.repondreErreur(res, 'Impossible de récupérer les statistiques', 500, 'STATISTICS_ERROR');
+    }
+  });
+
+  // Update login status
+  updateLoginStatus = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+
+    if (isNaN(eleveId) || eleveId <= 0) {
+      this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
+      return;
+    }
+
+    const eleve = await Eleve.findByPk(eleveId);
+    if (!eleve) {
+      this.repondreErreur(res, `Élève avec l'ID ${eleveId} non trouvé`, 404, 'STUDENT_NOT_FOUND');
+      return;
+    }
+
+    try {
+      await eleve.updateLoginStatus(true);
+      await eleve.updateDailyStreak();
+
+      this.repondreSucces(res, {
+        estConnecte: eleve.estConnecte,
+        dernierAcces: eleve.dernierAcces,
+        serieJours: eleve.serieJours
+      }, 'Connexion enregistrée avec succès');
+    } catch (error) {
+      this.logError('Erreur mise à jour statut connexion', error);
+      this.repondreErreur(res, 'Impossible de mettre à jour le statut de connexion', 500, 'LOGIN_STATUS_ERROR');
+    }
+  });
+
+  // Update logout status
+  updateLogoutStatus = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const eleveIdParam = req.params['id'];
+    if (!eleveIdParam) {
+      this.repondreErreur(res, 'ID élève requis', 400, 'MISSING_STUDENT_ID');
+      return;
+    }
+    
+    const eleveId = parseInt(eleveIdParam);
+
+    if (isNaN(eleveId) || eleveId <= 0) {
+      this.repondreErreur(res, 'ID élève invalide', 400, 'INVALID_STUDENT_ID');
+      return;
+    }
+
+    const eleve = await Eleve.findByPk(eleveId);
+    if (!eleve) {
+      this.repondreErreur(res, `Élève avec l'ID ${eleveId} non trouvé`, 404, 'STUDENT_NOT_FOUND');
+      return;
+    }
+
+    try {
+      await eleve.updateLoginStatus(false);
+
+      this.repondreSucces(res, {
+        estConnecte: eleve.estConnecte,
+        dernierAcces: eleve.dernierAcces
+      }, 'Déconnexion enregistrée avec succès');
+    } catch (error) {
+      this.logError('Erreur mise à jour statut déconnexion', error);
+      this.repondreErreur(res, 'Impossible de mettre à jour le statut de déconnexion', 500, 'LOGOUT_STATUS_ERROR');
     }
   });
 } 

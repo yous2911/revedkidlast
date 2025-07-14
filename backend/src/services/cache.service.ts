@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { monitoringService } from './monitoring.service';
 
 interface CacheOptions {
   ttl?: number; // Time to live in seconds
@@ -17,22 +18,13 @@ export class CacheService {
   private async initializeRedis(): Promise<void> {
     try {
       this.redis = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD,
-        retryDelayOnFailover: 100,
+        host: process.env['REDIS_HOST'] || 'localhost',
+        port: parseInt(process.env['REDIS_PORT'] || '6379'),
+        password: process.env['REDIS_PASSWORD'] || '',
         maxRetriesPerRequest: 3,
         lazyConnect: true,
         keepAlive: 30000,
-        connectionName: 'reved-kids-cache',
-        onConnect: () => {
-          this.isConnected = true;
-          console.log('✅ Redis connected successfully');
-        },
-        onError: (error) => {
-          this.isConnected = false;
-          console.error('❌ Redis connection error:', error.message);
-        }
+        connectionName: 'reved-kids-cache'
       });
 
       // Test connection
@@ -50,13 +42,35 @@ export class CacheService {
     try {
       if (this.isConnected && this.redis) {
         const result = await this.redis.get(fullKey);
-        return result ? JSON.parse(result) : null;
+        if (!result) {
+          monitoringService.recordCacheMiss();
+          return null;
+        }
+        
+        monitoringService.recordCacheHit();
+        
+        try {
+          return JSON.parse(result);
+        } catch (parseError) {
+          console.error('Cache JSON parse error:', parseError);
+          // Remove corrupted data from Redis
+          await this.redis.del(fullKey).catch(() => {});
+          monitoringService.recordCacheMiss();
+          return null;
+        }
       } else {
         // Fallback to memory cache
-        return this.getFromFallback<T>(fullKey);
+        const result = this.getFromFallback<T>(fullKey);
+        if (result === null) {
+          monitoringService.recordCacheMiss();
+        } else {
+          monitoringService.recordCacheHit();
+        }
+        return result;
       }
     } catch (error) {
       console.error('Cache get error:', error);
+      monitoringService.recordCacheMiss();
       return this.getFromFallback<T>(fullKey);
     }
   }
@@ -255,7 +269,12 @@ export const cacheMiddleware = (ttl: number = 3600, prefix?: string) => {
     const cacheKey = `${req.originalUrl}:${JSON.stringify(req.query)}`;
     
     try {
-      const cached = await cacheService.get(cacheKey, { prefix });
+      const cacheOptions: CacheOptions = { ttl };
+      if (prefix) {
+        cacheOptions.prefix = prefix;
+      }
+      
+      const cached = await cacheService.get(cacheKey, cacheOptions);
       
       if (cached) {
         res.set('X-Cache', 'HIT');
@@ -266,7 +285,7 @@ export const cacheMiddleware = (ttl: number = 3600, prefix?: string) => {
       const originalSend = res.json;
       res.json = function(data: any) {
         if (res.statusCode === 200) {
-          cacheService.set(cacheKey, data, { ttl, prefix }).catch(err => 
+          cacheService.set(cacheKey, data, cacheOptions).catch(err => 
             console.error('Cache set error in middleware:', err)
           );
         }

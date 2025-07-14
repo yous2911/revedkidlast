@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 
 export abstract class BaseController {
   protected nomController: string = 'BaseController';

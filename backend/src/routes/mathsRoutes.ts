@@ -40,12 +40,9 @@ router.get('/defis/:id', (req, res) => {
       data: defi
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération du défi maths:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/maths/defis/niveau/:niveau - Obtenir des défis par niveau
@@ -68,12 +65,9 @@ router.get('/defis/niveau/:niveau', (req, res) => {
       niveau
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des défis par niveau:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/maths/defis/type/:type - Obtenir des défis par type
@@ -98,12 +92,9 @@ router.get('/defis/type/:type', (req, res) => {
       type
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des défis par type:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/maths/defis/difficulte/:difficulte - Obtenir des défis par difficulté
@@ -128,12 +119,9 @@ router.get('/defis/difficulte/:difficulte', (req, res) => {
       difficulte
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des défis par difficulté:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/maths/defis/aleatoire - Obtenir un défi aléatoire
@@ -179,12 +167,9 @@ router.get('/defis/aleatoire/niveau/:niveau', (req, res) => {
       data: defi
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération du défi aléatoire par niveau:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/maths/defis/progression/:niveauEleve - Obtenir des défis adaptés au niveau de l'élève
@@ -207,12 +192,9 @@ router.get('/defis/progression/:niveauEleve', (req, res) => {
       niveauEleve
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des défis de progression:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur interne du serveur'
-    });
+    return res.status(500).json({ success: false, error: { message: 'Erreur serveur', code: 'SERVER_ERROR' } });
   }
+  return res.status(404).json({ success: false, error: { message: 'Aucune donnée trouvée', code: 'NOT_FOUND' } });
 });
 
 // GET /api/maths/stats - Obtenir les statistiques des défis

@@ -1,223 +1,281 @@
 # RevEd Kids Backend
 
-Backend pour l'application éducative RevEd Kids, développé avec Node.js, Express, TypeScript et PostgreSQL.
+A comprehensive educational platform backend built with Node.js, Express, TypeScript, and PostgreSQL, featuring advanced monitoring, caching, and student management capabilities.
 
-## 🚀 Fonctionnalités
+## 🚀 Features
 
-- **Authentification sécurisée** pour les élèves et parents
-- **Gestion des exercices pédagogiques** avec recommandations intelligentes
-- **Suivi de progression** détaillé pour chaque élève
-- **Analytics et statistiques** de performance
-- **API RESTful** complète et documentée
-- **Sécurité renforcée** avec validation, rate limiting et sanitization
-- **Base de données optimisée** avec Sequelize ORM
-- **Cache Redis intelligent** avec fallback mémoire
-- **Monitoring de performance** en temps réel
-- **Optimisations pour 200+ élèves simultanés**
+### Core Features
+- **Student Management**: Complete student profiles with preferences and adaptations
+- **Exercise System**: Dynamic exercise generation and progress tracking
+- **Authentication**: Secure JWT-based authentication with parent verification
+- **Progress Tracking**: Comprehensive student progress analytics
+- **Recommendation Engine**: AI-powered exercise recommendations
 
-## 📋 Prérequis
+### Advanced Features
+- **Real-time Monitoring**: Performance metrics, error tracking, and health checks
+- **Intelligent Caching**: Redis-based caching with fallback mechanisms
+- **Security Hardening**: Rate limiting, input validation, and security headers
+- **Database Optimization**: Automatic indexing and connection pooling
+- **Accessibility Support**: Built-in adaptations for various learning needs
 
-- Node.js >= 18.0.0
-- npm >= 9.0.0
-- PostgreSQL >= 13.0
-- Redis (optionnel, pour le cache)
+## 📋 Prerequisites
+
+- Node.js 18+ 
+- PostgreSQL 12+
+- Redis 6+ (optional, for caching)
+- TypeScript 5+
 
 ## 🛠️ Installation
 
-1. **Cloner le repository**
+1. **Clone the repository**
    ```bash
    git clone <repository-url>
    cd revedkidslast/backend
    ```
 
-2. **Installer les dépendances**
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **Configurer l'environnement**
+3. **Environment Setup**
    ```bash
+   # Copy the example environment file
    cp env.example .env
-   # Éditer le fichier .env avec vos configurations
+   
+   # Edit .env with your actual values
+   nano .env
    ```
 
-4. **Configurer la base de données**
+4. **Database Setup**
    ```bash
-   # Créer la base de données PostgreSQL
+   # Create PostgreSQL database
    createdb reved_kids
    
-   # Ou utiliser psql
-   psql -U postgres
-   CREATE DATABASE reved_kids;
+   # Run migrations (in development)
+   npm run dev
    ```
 
-5. **Compiler TypeScript**
+5. **Start the server**
    ```bash
+   # Development
+   npm run dev
+   
+   # Production
    npm run build
+   npm start
    ```
 
-## 🚀 Démarrage
+## ⚙️ Environment Configuration
 
-### Mode développement
-```bash
-npm run dev
-```
-
-### Mode production
-```bash
-npm run build
-npm start
-```
-
-Le serveur sera accessible sur `http://localhost:3000`
-
-## 📊 Endpoints API
-
-### Authentification
-- `POST /api/auth/login` - Connexion élève
-- `POST /api/auth/logout` - Déconnexion
-- `GET /api/auth/verify/:eleveId` - Vérification élève
-- `GET /api/auth/health` - Health check auth
-
-### Élèves
-- `GET /api/eleves/:id` - Informations élève
-- `GET /api/eleves/:id/exercices-recommandes` - Exercices recommandés
-- `POST /api/eleves/:id/exercices/tentative` - Soumettre tentative
-- `GET /api/eleves/:id/progression` - Progression élève
-- `GET /api/eleves/:id/sessions` - Sessions et analytics
-
-### Monitoring & Performance
-- `GET /api/monitoring/health` - Statut général du système
-- `GET /api/monitoring/metrics` - Métriques de performance complètes
-- `GET /api/monitoring/system` - Métriques système (CPU, mémoire)
-- `GET /api/monitoring/cache` - Statistiques du cache
-- `GET /api/monitoring/alerts` - Alertes de performance
-- `DELETE /api/monitoring/cache` - Vider le cache
-
-### Système
-- `GET /` - Informations API
-- `GET /api/health` - Health check global
-
-## 🗄️ Structure de la base de données
-
-### Tables principales
-- `eleves` - Informations des élèves
-- `exercices_pedagogiques` - Exercices disponibles
-- `modules_pedagogiques` - Modules d'apprentissage
-- `progressions_eleves` - Progression par élève
-- `sessions_eleves` - Sessions d'apprentissage
-- `revisions_programmees` - Révisions espacées
-
-## 🔧 Configuration
-
-### Variables d'environnement importantes
+### Required Variables
 
 ```env
-# Base de données
+# Database (Required)
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
-DB_PASSWORD=password
+DB_PASSWORD=your_secure_password
 DB_NAME=reved_kids
 
-# Sécurité
-JWT_SECRET=your-secret-key
-ENCRYPTION_KEY=your-encryption-key
-
-# Application
-NODE_ENV=development
-PORT=3000
+# JWT (Required)
+JWT_SECRET=your_super_secure_jwt_secret_key_minimum_32_chars
 ```
 
-## 🧪 Tests
+### Optional Variables
+
+```env
+# Redis (Optional - for caching)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# Email (Optional - for notifications)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+
+# Security
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_AUTH_MAX=10
+
+# Performance
+CACHE_TTL_SECONDS=3600
+MAX_REQUEST_SIZE=10mb
+```
+
+## 🏗️ Project Structure
+
+```
+backend/
+├── src/
+│   ├── controllers/          # Request handlers
+│   ├── models/              # Database models
+│   ├── routes/              # API routes
+│   ├── services/            # Business logic
+│   ├── middleware/          # Express middleware
+│   ├── db.ts               # Database configuration
+│   ├── app.ts              # Express app setup
+│   └── server.ts           # Server startup
+├── tests/                  # Test files
+├── .env                    # Environment variables
+├── package.json
+└── tsconfig.json
+```
+
+## 📚 API Documentation
+
+### Authentication
+- `POST /api/auth/login` - Student login
+- `POST /api/auth/verify` - Parent code verification
+- `POST /api/auth/logout` - Logout
+
+### Students
+- `GET /api/eleves/:id` - Get student info
+- `PUT /api/eleves/:id/preferences` - Update preferences
+- `PUT /api/eleves/:id/adaptations` - Update adaptations
+- `GET /api/eleves/:id/statistiques` - Get statistics
+- `GET /api/eleves/:id/exercices-recommandes` - Get recommendations
+- `POST /api/eleves/:id/exercices/tentative` - Submit exercise attempt
+
+### Monitoring
+- `GET /api/monitoring/health` - System health
+- `GET /api/monitoring/performance` - Performance metrics
+- `GET /api/monitoring/dashboard` - Comprehensive dashboard
+- `GET /api/monitoring/alerts` - Active alerts
+
+### Educational Content
+- `GET /api/defis` - Get French challenges
+- `GET /api/maths` - Get math exercises
+
+## 🔧 Development
+
+### Available Scripts
 
 ```bash
-# Lancer tous les tests
+# Development
+npm run dev              # Start with nodemon
+npm run build           # Build TypeScript
+npm run start           # Start production server
+
+# Testing
+npm run test            # Run tests
+npm run test:watch      # Run tests in watch mode
+npm run test:coverage   # Generate coverage report
+
+# Database
+npm run db:migrate      # Run migrations
+npm run db:seed         # Seed database
+npm run db:reset        # Reset database
+
+# Linting
+npm run lint            # Run ESLint
+npm run lint:fix        # Fix linting issues
+```
+
+### Code Quality
+
+The project uses:
+- **ESLint** for code linting
+- **Prettier** for code formatting
+- **TypeScript** for type safety
+- **Jest** for testing
+
+## 🧪 Testing
+
+```bash
+# Run all tests
 npm test
 
-# Tests en mode watch
-npm run test:watch
+# Run specific test file
+npm test -- monitoring.test.ts
 
-# Tests avec couverture
+# Run tests with coverage
 npm run test:coverage
 ```
 
-## 📝 Scripts disponibles
+## 📊 Monitoring
 
-- `npm run dev` - Démarrage en mode développement
-- `npm run build` - Compilation TypeScript
-- `npm start` - Démarrage en production
-- `npm test` - Lancement des tests
-- `npm run test:performance` - Tests de performance
-- `npm run lint` - Vérification du code
-- `npm run lint:fix` - Correction automatique du code
-- `npm run db:migrate` - Migration de la base de données
-- `npm run db:seed` - Peuplement de la base de données
-- `npm run db:indexes` - Application des index de performance
-- `npm run monitor` - Vérifier la santé du système
-- `npm run cache:stats` - Statistiques du cache
-- `npm run cache:clear` - Vider le cache
+The backend includes comprehensive monitoring:
 
-## 🔒 Sécurité
-
-- **Rate limiting** sur toutes les routes
-- **Validation** stricte des entrées
-- **Sanitization** des données
-- **Headers de sécurité** (Helmet)
-- **CORS** configuré
-- **Gestion d'erreurs** centralisée
-
-## 📈 Monitoring & Performance
-
-- **Health checks** automatiques
-- **Logging** structuré
-- **Métriques** de performance en temps réel
-- **Gestion d'erreurs** robuste
-- **Cache Redis** avec statistiques
-- **Alertes automatiques** de performance
-- **Tests de charge** automatisés
-- **Optimisations** pour 200+ élèves simultanés
-
-> 📖 Voir [PERFORMANCE.md](./PERFORMANCE.md) pour les détails des optimisations
-
-## 🚀 Déploiement
-
-### Docker (recommandé)
+### Health Check
 ```bash
-docker build -t reved-kids-backend .
-docker run -p 3000:3000 reved-kids-backend
+curl http://localhost:3000/api/monitoring/health
 ```
 
-### Manuel
+### Performance Metrics
 ```bash
-npm run build
-NODE_ENV=production npm start
+curl http://localhost:3000/api/monitoring/performance
 ```
 
-## 🤝 Contribution
+### Dashboard
+```bash
+curl http://localhost:3000/api/monitoring/dashboard
+```
 
-1. Fork le projet
-2. Créer une branche feature (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+## 🔒 Security Features
 
-## 📄 Licence
+- **Rate Limiting**: Configurable rate limits per endpoint
+- **Input Validation**: Comprehensive request validation
+- **Security Headers**: CORS, CSP, and other security headers
+- **JWT Authentication**: Secure token-based authentication
+- **SQL Injection Protection**: Parameterized queries
+- **XSS Protection**: Input sanitization
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+## 🚀 Production Deployment
+
+### Environment Variables for Production
+
+```env
+NODE_ENV=production
+DB_SSL=true
+REDIS_URL=redis://your-production-redis-url
+JWT_SECRET=your_production_jwt_secret_very_long_and_secure
+RATE_LIMIT_MAX_REQUESTS=50
+CACHE_TTL_SECONDS=7200
+```
+
+### Docker Deployment
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new features
+5. Run the test suite
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
 
 ## 🆘 Support
 
-Pour toute question ou problème :
-- Ouvrir une issue sur GitHub
-- Contacter l'équipe de développement
+For support and questions:
+- Create an issue in the repository
+- Check the monitoring dashboard for system status
+- Review the API documentation
 
 ## 🔄 Changelog
 
-### Version 1.0.0
-- ✅ API complète pour la gestion des élèves
-- ✅ Système d'authentification sécurisé
-- ✅ Gestion des exercices et recommandations
-- ✅ Suivi de progression et analytics
-- ✅ Base de données optimisée
-- ✅ Sécurité renforcée 
+### v1.0.0
+- Initial release with core features
+- Student management system
+- Exercise recommendation engine
+- Comprehensive monitoring
+- Security hardening
+- Performance optimization 

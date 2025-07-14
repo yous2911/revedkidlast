@@ -1,153 +1,184 @@
 import { Router } from 'express';
 import { monitoringService } from '../services/monitoring.service';
-import { cacheService } from '../services/cache.service';
-import { asyncHandler } from '../middleware/errorHandler';
 
 const router = Router();
 
 // Health check endpoint
-router.get('/health', asyncHandler(async (req, res) => {
-  const health = monitoringService.getHealthStatus();
-  const statusCode = health.status === 'healthy' ? 200 : 503;
-  
-  res.status(statusCode).json({
-    success: true,
-    data: health,
-    message: `Service is ${health.status}`
-  });
-}));
+router.get('/health', (_req, res) => {
+  try {
+    const healthStatus = monitoringService.getHealthStatus();
+    res.json({
+      status: 'success',
+      data: healthStatus,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get health status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
-// Performance metrics
-router.get('/metrics', asyncHandler(async (req, res) => {
-  const metrics = monitoringService.generateReport();
-  
-  res.json({
-    success: true,
-    data: metrics,
-    message: 'Performance metrics retrieved successfully'
-  });
-}));
-
-// System metrics
-router.get('/system', asyncHandler(async (req, res) => {
-  const systemMetrics = monitoringService.getSystemMetrics();
-  
-  res.json({
-    success: true,
-    data: systemMetrics,
-    message: 'System metrics retrieved successfully'
-  });
-}));
-
-// Performance statistics
-router.get('/performance', asyncHandler(async (req, res) => {
-  const performanceStats = monitoringService.getPerformanceStats();
-  
-  res.json({
-    success: true,
-    data: performanceStats,
-    message: 'Performance statistics retrieved successfully'
-  });
-}));
+// Performance metrics endpoint
+router.get('/performance', (_req, res) => {
+  try {
+    const performanceSummary = monitoringService.getPerformanceSummary();
+    const systemMetrics = monitoringService.getSystemMetrics();
+    
+    res.json({
+      status: 'success',
+      data: {
+        summary: performanceSummary,
+        system: systemMetrics,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get performance metrics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 // Endpoint statistics
-router.get('/endpoints', asyncHandler(async (req, res) => {
-  const endpointStats = monitoringService.getEndpointStats();
-  
-  res.json({
-    success: true,
-    data: endpointStats,
-    message: 'Endpoint statistics retrieved successfully'
-  });
-}));
+router.get('/endpoints', (_req, res) => {
+  try {
+    const endpointStats = monitoringService.getEndpointStats();
+    
+    res.json({
+      status: 'success',
+      data: {
+        endpoints: endpointStats,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get endpoint statistics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 // Recent errors
-router.get('/errors', asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit as string) || 10;
-  const recentErrors = monitoringService.getRecentErrors(limit);
-  
-  res.json({
-    success: true,
-    data: recentErrors,
-    message: 'Recent errors retrieved successfully'
-  });
-}));
-
-// Cache statistics
-router.get('/cache', asyncHandler(async (req, res) => {
-  const cacheStats = await cacheService.getCacheStats();
-  
-  res.json({
-    success: true,
-    data: cacheStats,
-    message: 'Cache statistics retrieved successfully'
-  });
-}));
-
-// Clear cache
-router.delete('/cache', asyncHandler(async (req, res) => {
-  const pattern = req.query.pattern as string || '*';
-  const deletedCount = await cacheService.invalidatePattern(pattern);
-  
-  res.json({
-    success: true,
-    data: { deletedCount, pattern },
-    message: `Cache cleared successfully. ${deletedCount} entries deleted.`
-  });
-}));
-
-// Reset monitoring metrics
-router.post('/reset', asyncHandler(async (req, res) => {
-  monitoringService.resetMetrics();
-  
-  res.json({
-    success: true,
-    data: null,
-    message: 'Monitoring metrics reset successfully'
-  });
-}));
-
-// Performance alerts
-router.get('/alerts', asyncHandler(async (req, res) => {
-  // Check for current performance issues
-  monitoringService.checkPerformanceIssues();
-  
-  const health = monitoringService.getHealthStatus();
-  const alerts = [];
-  
-  if (health.status === 'degraded') {
-    alerts.push({
-      type: 'performance',
-      severity: 'warning',
-      message: 'System performance is degraded',
-      details: health.checks
+router.get('/errors', (req, res) => {
+  try {
+    const limit = parseInt(req.query['limit'] as string) || 50;
+    const recentErrors = monitoringService.getRecentErrors(limit);
+    
+    res.json({
+      status: 'success',
+      data: {
+        errors: recentErrors,
+        total: recentErrors.length,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get recent errors',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-  
-  const metrics = monitoringService.getSystemMetrics();
-  if (metrics.memory.percentage > 85) {
-    alerts.push({
-      type: 'memory',
-      severity: 'warning',
-      message: 'High memory usage detected',
-      details: metrics.memory
+});
+
+// Active alerts
+router.get('/alerts', (_req, res) => {
+  try {
+    const alerts = monitoringService.checkAlerts();
+    
+    res.json({
+      status: 'success',
+      data: {
+        alerts,
+        count: alerts.length,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get alerts',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-  
-  if (metrics.cache.hitRate < 50 && metrics.cache.hits + metrics.cache.misses > 100) {
-    alerts.push({
-      type: 'cache',
-      severity: 'info',
-      message: 'Low cache hit rate detected',
-      details: metrics.cache
+});
+
+// System metrics
+router.get('/system', (_req, res) => {
+  try {
+    const systemMetrics = monitoringService.getSystemMetrics();
+    
+    res.json({
+      status: 'success',
+      data: {
+        metrics: systemMetrics,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get system metrics',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-  
-  res.json({
-    success: true,
-    data: alerts,
-    message: 'Performance alerts retrieved successfully'
-  });
-}));
+});
+
+// Reset metrics (for testing/debugging)
+router.post('/reset', (_req, res) => {
+  try {
+    monitoringService.reset();
+    
+    res.json({
+      status: 'success',
+      message: 'Metrics reset successfully',
+      timestamp: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to reset metrics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Comprehensive monitoring dashboard data
+router.get('/dashboard', (_req, res) => {
+  try {
+    const healthStatus = monitoringService.getHealthStatus();
+    const performanceSummary = monitoringService.getPerformanceSummary();
+    const systemMetrics = monitoringService.getSystemMetrics();
+    const alerts = monitoringService.checkAlerts();
+    const recentErrors = monitoringService.getRecentErrors(10);
+    const endpointStats = monitoringService.getEndpointStats().slice(0, 10); // Top 10 slowest endpoints
+    
+    res.json({
+      status: 'success',
+      data: {
+        health: healthStatus,
+        performance: performanceSummary,
+        system: systemMetrics,
+        alerts,
+        recentErrors,
+        topEndpoints: endpointStats,
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get dashboard data',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 export default router; 

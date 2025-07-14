@@ -18,7 +18,7 @@ export abstract class BaseService {
   }
 
   protected logDebug(message: string): void {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env['NODE_ENV'] === 'development') {
       console.debug(`[${this.nomService}] ${message}`);
     }
   }
@@ -77,8 +77,9 @@ export abstract class BaseService {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
 
-  protected formatDate(date: Date): string {
-    return date.toISOString().split('T')[0];
+  protected formatDate(date: Date | undefined | null): string {
+    if (!date || typeof date.toISOString !== 'function') return '';
+    return date.toISOString().split('T')[0] || '';
   }
 
   protected calculateAge(birthDate: Date): number {
